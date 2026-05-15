@@ -21,10 +21,12 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 └── init/
     ├── init-node.sh         # [vm]    Kernel modules, sysctl, enable CRI-O/kubelet
     ├── init-control-plane.sh # [vm]   kubeadm init + optional Cilium install
-    ├── join-cluster.sh      # [vm]    kubeadm join for worker nodes
-    ├── cilium.sh            # [vm]    Install Cilium CNI
-    ├── kubeadm-init.yaml    # [vm]    kubeadm InitConfiguration + ClusterConfiguration
-    └── kubeadm-join.yaml    # [vm]    kubeadm JoinConfiguration template
+    ├── join-worker.sh        # [vm]   kubeadm join for worker nodes
+    ├── join-control-plane.sh # [vm]   kubeadm join for additional control plane nodes
+    ├── cilium.sh             # [vm]   Install Cilium CNI
+    ├── kubeadm-init.yaml     # [vm]   kubeadm InitConfiguration + ClusterConfiguration
+    ├── kubeadm-join-worker.yaml          # [vm]   kubeadm JoinConfiguration template (worker)
+    └── kubeadm-join-control-plane.yaml   # [vm]   kubeadm JoinConfiguration template (control plane)
 ```
 
 ### Network CIDRs
@@ -128,7 +130,7 @@ sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-worker-001/' butane/.env
 bash butane/build.sh
 
 # Provision worker VM
-bash core-install.sh --name k8s-worker-001 --cpus 2 --memory 4096 --no-blockpull
+bash core-install.sh --name k8s-worker-001 --cpus 2 --memory 4096
 ```
 
 **Inside the VM** — copy init scripts, SSH in, then join:
@@ -137,7 +139,7 @@ bash core-install.sh --name k8s-worker-001 --cpus 2 --memory 4096 --no-blockpull
 scp -r init/ core@<worker-ip>:~/
 ssh core@<worker-ip>
 bash init/init-node.sh
-bash init/join-cluster.sh \
+bash init/join-worker.sh \
     --token <token> \
     --hash sha256:<hash> \
     --endpoint <control-plane-ip>:6443
@@ -192,14 +194,25 @@ bash init/join-cluster.sh \
 | `--pod-cidr` | no | `172.16.0.0/12` | Pod IPv4 CIDR |
 | `--dry-run` | no | off | Print generated config and commands |
 
-### `init/join-cluster.sh` Options
+### `init/join-worker.sh` Options
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
 | `--token` | yes | — | Bootstrap token |
 | `--hash` | yes | — | CA cert hash, e.g. `sha256:abc123...` |
 | `--endpoint` | yes | — | API server endpoint |
-| `--config` | no | `init/kubeadm-join.yaml` | Join config template |
+| `--config` | no | `init/kubeadm-join-worker.yaml` | Join config template |
+| `--dry-run` | no | off | Print generated config and commands |
+
+### `init/join-control-plane.sh` Options
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--token` | yes | — | Bootstrap token |
+| `--hash` | yes | — | CA cert hash, e.g. `sha256:abc123...` |
+| `--endpoint` | yes | — | API server endpoint |
+| `--certificate-key` | yes | — | Certificate key from `kubeadm init phase upload-certs` |
+| `--config` | no | `init/kubeadm-join-control-plane.yaml` | Join config template |
 | `--dry-run` | no | off | Print generated config and commands |
 
 ### `init/cilium.sh` Options

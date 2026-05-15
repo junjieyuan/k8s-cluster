@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Auto-escalate to root (virsh, virt-install, and image paths require privileges)
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
 usage() {
     cat <<'EOF'
 Usage: core-install.sh [OPTIONS]
@@ -61,6 +66,7 @@ if [[ -z "$VM_IMAGE" ]]; then
     if [[ -z "$VM_IMAGE" ]]; then
         echo "Error: No FCOS image found in /var/lib/libvirt/images/ and --image not specified." >&2
         echo "Download one from https://fedoraproject.org/coreos/download" >&2
+        echo "Or specify the path with --image." >&2
         exit 1
     fi
     echo "Using image: $VM_IMAGE" >&2
