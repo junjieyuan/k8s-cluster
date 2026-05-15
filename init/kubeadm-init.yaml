@@ -12,8 +12,8 @@ kind: ClusterConfiguration
 controlPlaneEndpoint: "control-plane.k8s.junjie.pro:6443"
 networking:
   # Must match the CIDR passed to cilium.sh.
-  podSubnet: "10.244.0.0/16"
-  serviceSubnet: "10.96.0.0/16"
+  podSubnet: "172.16.0.0/12"
+  serviceSubnet: "10.96.0.0/12"
 controllerManager:
   extraArgs:
     - name: "flex-volume-plugin-dir"

@@ -16,7 +16,7 @@ Options:
   --configure-kubectl  Copy admin.conf to ~/.kube/config after init
   --install-cni        Run cilium.sh after init
   --cni-version VER    Cilium version (default: 1.19.0)
-  --pod-cidr CIDR      Pod IPv4 CIDR (default: 10.244.0.0/16)
+  --pod-cidr CIDR      Pod IPv4 CIDR (default: 172.16.0.0/12)
   --dry-run            Print commands without executing
   --help               Show this help
 EOF
@@ -26,7 +26,7 @@ EOF
 CONFIGURE_KUBECTL=false
 INSTALL_CNI=false
 CNI_VERSION="1.19.0"
-POD_CIDR="10.244.0.0/16"
+POD_CIDR="172.16.0.0/12"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do

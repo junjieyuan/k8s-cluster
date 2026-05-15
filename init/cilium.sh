@@ -9,14 +9,14 @@ Install Cilium CNI on an initialized Kubernetes cluster.
 
 Options:
   --version VERSION   Cilium version (default: 1.19.0)
-  --cidr CIDR         Pod IPv4 CIDR (default: 10.244.0.0/16)
+  --cidr CIDR         Pod IPv4 CIDR (default: 172.16.0.0/12)
   --help              Show this help
 EOF
     exit "${1:-0}"
 }
 
 VERSION="1.19.0"
-CIDR="10.244.0.0/16"
+CIDR="172.16.0.0/12"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
