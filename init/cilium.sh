@@ -32,10 +32,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 SUDO=""
-[[ $EUID -ne 0 ]] && SUDO="sudo"
+if [[ $EUID -ne 0 ]]; then
+    SUDO="sudo"
+fi
 
 # Install cilium CLI if missing
 if ! command -v cilium >/dev/null 2>&1; then
+    # Need root to install to /usr/local/bin
+    if [[ $EUID -ne 0 ]]; then
+        exec sudo "$0" "$@"
+    fi
     echo "cilium CLI not found — installing..." >&2
 
     CLI_ARCH="amd64"

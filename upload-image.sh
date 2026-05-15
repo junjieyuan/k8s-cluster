@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Auto-escalate to root (virsh requires privileges)
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
 usage() {
     cat <<'EOF'
 Usage: upload-image.sh [OPTIONS] IMAGE_FILE
@@ -38,9 +43,6 @@ done
 
 command -v virsh >/dev/null 2>&1 || { echo "Error: virsh not found (install libvirt-client)" >&2; exit 1; }
 
-SUDO=""
-[[ $EUID -ne 0 ]] && SUDO="sudo"
-
 # Default volume name to basename of image file
 [[ -z "$VOL_NAME" ]] && VOL_NAME="$(basename "$IMAGE_FILE")"
 
@@ -56,28 +58,28 @@ echo "Format: $FORMAT" >&2
 echo "" >&2
 
 # Check pool exists
-if ! $SUDO virsh pool-info "$POOL" &>/dev/null; then
+if ! virsh pool-info "$POOL" &>/dev/null; then
     echo "Error: storage pool '$POOL' not found" >&2
     exit 1
 fi
 
 # Check if volume already exists
-if $SUDO virsh vol-info --pool "$POOL" "$VOL_NAME" &>/dev/null; then
+if virsh vol-info --pool "$POOL" "$VOL_NAME" &>/dev/null; then
     echo "Error: volume '$VOL_NAME' already exists in pool '$POOL'" >&2
     exit 1
 fi
 
 echo "Creating volume..." >&2
-$SUDO virsh vol-create-as "$POOL" "$VOL_NAME" "$SIZE" --format "$FORMAT"
+virsh vol-create-as "$POOL" "$VOL_NAME" "$SIZE" --format "$FORMAT"
 
 echo "Uploading..." >&2
-$SUDO virsh vol-upload --pool "$POOL" "$VOL_NAME" "$IMAGE_FILE"
+virsh vol-upload --pool "$POOL" "$VOL_NAME" "$IMAGE_FILE"
 
 echo "Verifying SHA512..." >&2
-VOL_PATH=$($SUDO virsh vol-path --pool "$POOL" "$VOL_NAME")
+VOL_PATH=$(virsh vol-path --pool "$POOL" "$VOL_NAME")
 
 SRC_HASH=$(sha512sum "$IMAGE_FILE" | awk '{print $1}')
-DST_HASH=$($SUDO sha512sum "$VOL_PATH" | awk '{print $1}')
+DST_HASH=$(sha512sum "$VOL_PATH" | awk '{print $1}')
 
 if [[ "$SRC_HASH" == "$DST_HASH" ]]; then
     echo "  [OK] SHA512 matches" >&2

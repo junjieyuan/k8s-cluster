@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Auto-escalate to root (modprobe, sysctl, systemctl require privileges)
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
 usage() {
     cat <<'EOF'
 Usage: init-node.sh [OPTIONS]
@@ -17,12 +22,6 @@ EOF
 [[ "${1:-}" == "--help" ]] && usage 0
 [[ $# -gt 0 ]] && { echo "Unknown option: $1" >&2; usage 1; }
 
-# Use sudo if not root
-SUDO=""
-if [[ $EUID -ne 0 ]]; then
-    SUDO="sudo"
-fi
-
 # Load kernel modules (systemd-modules-load should have done this after reboot;
 # verify and only load if missing).
 echo "Verifying kernel modules..." >&2
@@ -31,20 +30,20 @@ for mod in overlay br_netfilter; do
         echo "  [OK] $mod" >&2
     else
         echo "  [MISS] $mod — loading now" >&2
-        $SUDO modprobe "$mod"
+        modprobe "$mod"
     fi
 done
 
 # Apply sysctl (systemd-sysctl should have done this; verify and apply if needed).
 echo "Verifying sysctl params..." >&2
-$SUDO sysctl --system >/dev/null 2>&1
+sysctl --system >/dev/null 2>&1
 
 for param in net.bridge.bridge-nf-call-iptables \
              net.bridge.bridge-nf-call-ip6tables \
              net.ipv4.ip_forward \
              net.ipv6.conf.all.forwarding \
              net.ipv6.conf.default.forwarding; do
-    val=$($SUDO sysctl -n "$param" 2>/dev/null || echo "unknown")
+    val=$(sysctl -n "$param" 2>/dev/null || echo "unknown")
     if [[ "$val" == "1" ]]; then
         echo "  [OK] $param = $val" >&2
     else
@@ -64,7 +63,7 @@ for bin in crio kubelet; do
 done
 
 echo "Enabling CRI-O and kubelet..." >&2
-$SUDO systemctl enable --now crio
-$SUDO systemctl enable --now kubelet
+systemctl enable --now crio
+systemctl enable --now kubelet
 
 echo "Node initialization complete." >&2

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Auto-escalate to root (kubeadm requires privileges)
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KUBEADM_CONFIG="${SCRIPT_DIR}/kubeadm-init.yaml"
 CILIUM_SCRIPT="${SCRIPT_DIR}/cilium.sh"
@@ -53,18 +58,15 @@ KUBEADM_GENERATED="$(mktemp /tmp/kubeadm-init.XXXXXX.yaml)"
 trap 'rm -f "$KUBEADM_GENERATED"' EXIT
 CONTROL_PLANE_ENDPOINT="$CONTROL_PLANE_ENDPOINT" envsubst '$CONTROL_PLANE_ENDPOINT' < "$KUBEADM_CONFIG" > "$KUBEADM_GENERATED"
 
-SUDO=""
-[[ $EUID -ne 0 ]] && SUDO="sudo"
-
 if $DRY_RUN; then
     echo "DRY-RUN:" >&2
-    echo "  $SUDO kubeadm init --config=$KUBEADM_GENERATED" >&2
+    echo "  kubeadm init --config=$KUBEADM_GENERATED" >&2
     echo "Generated config:" >&2
     cat "$KUBEADM_GENERATED" >&2
     if $CONFIGURE_KUBECTL; then
         echo "  mkdir -p \$HOME/.kube"
-        echo "  $SUDO cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config"
-        echo "  $SUDO chown \$(id -u):\$(id -g) \$HOME/.kube/config"
+        echo "  cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config"
+        echo "  chown \$(id -u):\$(id -g) \$HOME/.kube/config"
     fi
     if $INSTALL_CNI; then
         echo "  $CILIUM_SCRIPT --version $CNI_VERSION --cidr $POD_CIDR"
@@ -73,7 +75,7 @@ if $DRY_RUN; then
 fi
 
 echo "Initializing Kubernetes control plane at $CONTROL_PLANE_ENDPOINT..." >&2
-$SUDO kubeadm init --config="$KUBEADM_GENERATED"
+kubeadm init --config="$KUBEADM_GENERATED"
 
 echo "" >&2
 echo "Control plane initialized successfully." >&2
@@ -81,14 +83,14 @@ echo "Control plane initialized successfully." >&2
 if $CONFIGURE_KUBECTL; then
     echo "Configuring kubectl..." >&2
     mkdir -p "$HOME/.kube"
-    $SUDO cp -i /etc/kubernetes/admin.conf "$HOME/.kube/config"
-    $SUDO chown "$(id -u):$(id -g)" "$HOME/.kube/config"
+    cp -i /etc/kubernetes/admin.conf "$HOME/.kube/config"
+    chown "$(id -u):$(id -g)" "$HOME/.kube/config"
     echo "kubectl configured." >&2
 else
     echo "To configure kubectl, run:" >&2
     echo "  mkdir -p \$HOME/.kube" >&2
-    echo "  $SUDO cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config" >&2
-    echo "  $SUDO chown \$(id -u):\$(id -g) \$HOME/.kube/config" >&2
+    echo "  cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config" >&2
+    echo "  chown \$(id -u):\$(id -g) \$HOME/.kube/config" >&2
 fi
 
 if $INSTALL_CNI; then

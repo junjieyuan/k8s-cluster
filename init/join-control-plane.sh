@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Auto-escalate to root (kubeadm requires privileges)
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JOIN_TEMPLATE="${SCRIPT_DIR}/kubeadm-join-control-plane.yaml"
 
@@ -65,13 +70,13 @@ TOKEN="$TOKEN" HASH="$HASH" ENDPOINT="$ENDPOINT" CERTIFICATE_KEY="$CERTIFICATE_K
 
 if $DRY_RUN; then
     echo "DRY-RUN:" >&2
-    echo "  $SUDO kubeadm join --config=$JOIN_CONFIG" >&2
+    echo "  kubeadm join --config=$JOIN_CONFIG" >&2
     echo "Generated config:" >&2
     cat "$JOIN_CONFIG" >&2
     exit 0
 fi
 
 echo "Joining Kubernetes control plane at $ENDPOINT..." >&2
-$SUDO kubeadm join --config="$JOIN_CONFIG"
+kubeadm join --config="$JOIN_CONFIG"
 
 echo "Control plane node joined successfully." >&2
