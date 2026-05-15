@@ -34,6 +34,13 @@ command -v cilium >/dev/null 2>&1 || {
     exit 1
 }
 
+# Verify cluster access (cilium CLI needs a working kubeconfig)
+if ! kubectl cluster-info >/dev/null 2>&1; then
+    echo "Error: cannot access Kubernetes cluster. Check that kubectl is configured." >&2
+    echo "  Run: mkdir -p \$HOME/.kube && sudo cp /etc/kubernetes/admin.conf \$HOME/.kube/config && sudo chown \$(id -u):\$(id -g) \$HOME/.kube/config" >&2
+    exit 1
+fi
+
 if $DRY_RUN; then
     echo "DRY-RUN: cilium install --version $VERSION --set ipam.operator.clusterPoolIPv4PodCIDRList='{$CIDR}'"
     exit 0
