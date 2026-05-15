@@ -188,7 +188,7 @@ bash init/join-cluster.sh \
 | `--config` | no | `init/kubeadm-init.yaml` | kubeadm config template |
 | `--configure-kubectl` | no | off | Copy admin.conf to `~/.kube/config` |
 | `--install-cni` | no | off | Run cilium.sh after init |
-| `--cni-version` | no | `1.19.0` | Cilium version |
+| `--cni-version` | no | `1.19.4` | Cilium version |
 | `--pod-cidr` | no | `172.16.0.0/12` | Pod IPv4 CIDR |
 | `--dry-run` | no | off | Print generated config and commands |
 
@@ -206,7 +206,7 @@ bash init/join-cluster.sh \
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--version` | `1.19.0` | Cilium version |
+| `--version` | `1.19.4` | Cilium version |
 | `--cidr` | `172.16.0.0/12` | Pod IPv4 CIDR |
 | `--dry-run` | off | Print command only |
 

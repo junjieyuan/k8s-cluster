@@ -6,16 +6,18 @@ usage() {
 Usage: cilium.sh [OPTIONS]
 
 Install Cilium CNI on an initialized Kubernetes cluster.
+Auto-downloads the cilium CLI if not already installed.
 
 Options:
-  --version VERSION   Cilium version (default: 1.19.0)
+  --version VERSION   Cilium version (default: 1.19.4)
   --cidr CIDR         Pod IPv4 CIDR (default: 172.16.0.0/12)
+  --dry-run           Print commands without executing
   --help              Show this help
 EOF
     exit "${1:-0}"
 }
 
-VERSION="1.19.0"
+VERSION="1.19.4"
 CIDR="172.16.0.0/12"
 DRY_RUN=false
 
@@ -29,10 +31,37 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-command -v cilium >/dev/null 2>&1 || {
-    echo "Error: cilium CLI not found. Install it: https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/" >&2
-    exit 1
-}
+SUDO=""
+[[ $EUID -ne 0 ]] && SUDO="sudo"
+
+# Install cilium CLI if missing
+if ! command -v cilium >/dev/null 2>&1; then
+    echo "cilium CLI not found — installing..." >&2
+
+    CLI_ARCH="amd64"
+    [[ "$(uname -m)" == "aarch64" ]] && CLI_ARCH="arm64"
+
+    CLI_VERSION=$(curl -sSf https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+    TARBALL="cilium-linux-${CLI_ARCH}.tar.gz"
+    TMPDIR="$(mktemp -d)"
+    trap 'rm -rf "$TMPDIR"' EXIT
+
+    echo "  Downloading cilium-cli v${CLI_VERSION} (${CLI_ARCH})..." >&2
+    curl -sSfL \
+        -o "$TMPDIR/$TARBALL" \
+        "https://github.com/cilium/cilium-cli/releases/download/v${CLI_VERSION}/${TARBALL}"
+    curl -sSfL \
+        -o "$TMPDIR/${TARBALL}.sha256sum" \
+        "https://github.com/cilium/cilium-cli/releases/download/v${CLI_VERSION}/${TARBALL}.sha256sum"
+
+    echo "  Verifying checksum..." >&2
+    (cd "$TMPDIR" && sha256sum --check "${TARBALL}.sha256sum")
+
+    echo "  Installing to /usr/local/bin..." >&2
+    $SUDO tar xzvfC "$TMPDIR/$TARBALL" /usr/local/bin >/dev/null
+
+    echo "  cilium CLI v${CLI_VERSION} installed" >&2
+fi
 
 # Verify cluster access (cilium CLI needs a working kubeconfig)
 if ! kubectl cluster-info >/dev/null 2>&1; then
