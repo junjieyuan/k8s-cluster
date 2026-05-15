@@ -104,7 +104,14 @@ ssh core@<vm-ip>
 ```bash
 bash init/init-node.sh
 sudo bash init/init-control-plane.sh --configure-kubectl --install-cni
+# Or with a custom endpoint:
+# sudo bash init/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
 ```
+
+> **Note**: Use the VM's IP (from `virsh net-dhcp-leases virbr0`) as the endpoint. If you prefer a hostname like `control-plane.k8s.junjie.pro`, add it to `/etc/hosts` on every node first:
+> ```bash
+> echo '<control-plane-ip> control-plane.k8s.junjie.pro' | sudo tee -a /etc/hosts
+> ```
 
 #### 6. Add Worker Nodes (Optional)
 
@@ -112,8 +119,9 @@ sudo bash init/init-control-plane.sh --configure-kubectl --install-cni
 
 ```bash
 # Get join info from control plane (run via SSH or on control plane VM)
+# Token expires after 24h — regenerate with the same command if needed.
 ssh core@<control-plane-ip> sudo kubeadm token create --print-join-command
-# Output: kubeadm join control-plane.k8s.junjie.pro:6443 --token xxx --discovery-token-ca-cert-hash sha256:xxx
+# Output: kubeadm join <endpoint> --token xxx --discovery-token-ca-cert-hash sha256:xxx
 
 # Edit .env, set HOSTNAME=k8s-worker-001, rebuild Ignition
 sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-worker-001/' butane/.env
@@ -132,8 +140,14 @@ bash init/init-node.sh
 bash init/join-cluster.sh \
     --token <token> \
     --hash sha256:<hash> \
-    --endpoint control-plane.k8s.junjie.pro:6443
+    --endpoint <control-plane-ip>:6443
 ```
+
+## Important Notes
+
+- **DHCP IP**: VMs get dynamic IPs from `virbr0`. Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
+- **Token expiry**: `kubeadm token create` tokens expire after 24 hours. Regenerate if needed.
+- **Hostname resolution**: If using a hostname for `--endpoint` (e.g. `control-plane.k8s.junjie.pro`), ensure it resolves on every node via DNS or `/etc/hosts`.
 
 ## Reference
 
@@ -165,6 +179,36 @@ bash init/join-cluster.sh \
 | Option | Description |
 |--------|-------------|
 | `--validate` | Validate template, no output |
+
+### `init/init-control-plane.sh` Options
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--endpoint` | no | `control-plane.k8s.junjie.pro:6443` | API server endpoint |
+| `--config` | no | `init/kubeadm-init.yaml` | kubeadm config template |
+| `--configure-kubectl` | no | off | Copy admin.conf to `~/.kube/config` |
+| `--install-cni` | no | off | Run cilium.sh after init |
+| `--cni-version` | no | `1.19.0` | Cilium version |
+| `--pod-cidr` | no | `172.16.0.0/12` | Pod IPv4 CIDR |
+| `--dry-run` | no | off | Print generated config and commands |
+
+### `init/join-cluster.sh` Options
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--token` | yes | — | Bootstrap token |
+| `--hash` | yes | — | CA cert hash, e.g. `sha256:abc123...` |
+| `--endpoint` | yes | — | API server endpoint |
+| `--config` | no | `init/kubeadm-join.yaml` | Join config template |
+| `--dry-run` | no | off | Print generated config and commands |
+
+### `init/cilium.sh` Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--version` | `1.19.0` | Cilium version |
+| `--cidr` | `172.16.0.0/12` | Pod IPv4 CIDR |
+| `--dry-run` | off | Print command only |
 
 ### `.env` Variables
 
