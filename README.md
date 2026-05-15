@@ -12,8 +12,10 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 ### Files
 
 ```
+.
 ├── core-install.sh          # [host]  Provision FCOS VMs via virt-install
 ├── upload-image.sh          # [host]  Upload disk image to libvirt storage pool
+├── AGENTS.md                #         Agent instructions
 ├── butane/
 │   ├── build.sh             # [host]  Compile Butane template → Ignition config
 │   ├── node.bu.tmpl         # [host]  Butane template (user, hostname, kernel, packages)
@@ -43,7 +45,7 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 - `envsubst` (usually in `gettext` package)
 - FCOS QCOW2 image uploaded to libvirt storage pool (see step 1)
 - `kubeadm`, `kubectl` (for init/join scripts)
-- [Cilium CLI](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/) (for CNI install)
+- [Cilium CLI](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/) — optional, `cilium.sh` auto-installs if missing
 
 ## Usage
 
