@@ -36,11 +36,11 @@ The caller never needs to prefix with `sudo`. Any `sudo` in README examples refe
 
 ## Butane/Ignition flow
 
-1. Copy `butane/.env.example` → `butane/.env`, fill in `PASSWORD_HASH` and `SSH_PUB_KEY` (other vars have defaults)
+1. Copy `butane/.env.example` → `butane/.env`, fill in `K8S_PASSWORD_HASH` and `K8S_SSH_PUB_KEY` (other vars have defaults)
 2. `bash butane/build.sh` compiles `node.bu.tmpl` → `node.ign` via envsubst + butane
 3. `core-install.sh` injects `node.ign` into the VM
 
-`build.sh` uses `set -a; source .env; set +a` to load all variables. `envsubst` substitutes `$PASSWORD_HASH $SSH_PUB_KEY $HOSTNAME $CRIO_VERSION $KUBERNETES_VERSION`.
+`build.sh` uses `set -a; source .env; set +a` to load all variables. `envsubst` substitutes `$K8S_PASSWORD_HASH $K8S_SSH_PUB_KEY $K8S_HOSTNAME $K8S_CRIO_VERSION $K8S_KUBERNETES_VERSION`.
 
 ## kubeadm configs are templates
 

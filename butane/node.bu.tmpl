@@ -3,15 +3,15 @@ version: "1.7.0"
 passwd:
   users:
     - name: core
-      password_hash: ${PASSWORD_HASH}
+      password_hash: ${K8S_PASSWORD_HASH}
       ssh_authorized_keys:
-        - ${SSH_PUB_KEY}
+        - ${K8S_SSH_PUB_KEY}
 storage:
   files:
     - path: /etc/hostname
       mode: 0644
       contents:
-        inline: ${HOSTNAME}
+        inline: ${K8S_HOSTNAME}
     # Phase 1 (Ignition): write kernel module config and sysctl params to disk.
     # These files take effect on boot for sysctl, but kernel modules still need
     # manual loading via modprobe in init-node.sh (phase 2).
@@ -45,6 +45,6 @@ systemd:
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${CRIO_VERSION} ${KUBERNETES_VERSION}
+        ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${K8S_CRIO_VERSION} ${K8S_KUBERNETES_VERSION}
         [Install]
         WantedBy=multi-user.target
