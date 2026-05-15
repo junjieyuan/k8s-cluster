@@ -6,6 +6,13 @@ if [[ $EUID -ne 0 ]]; then
     exec sudo "$0" "$@"
 fi
 
+# Kubernetes requires swap off. ublue enables zram by default; FCOS does not.
+if systemctl is-active --quiet systemd-zram-setup@zram0.service 2>/dev/null; then
+    echo "Disabling zram swap..." >&2
+    systemctl stop systemd-zram-setup@zram0.service
+    systemctl mask systemd-zram-setup@zram0.service
+fi
+
 usage() {
     cat <<'EOF'
 Usage: init-node.sh [OPTIONS]
