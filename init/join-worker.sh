@@ -76,6 +76,7 @@ if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewa
     firewall-cmd --permanent --add-port=30000-32767/udp   # NodePort UDP (not in kube-worker)
     firewall-cmd --permanent --add-port=6081/udp          # Cilium Geneve overlay
     firewall-cmd --permanent --add-port=8472/udp          # Cilium VXLAN overlay (fallback)
+    firewall-cmd --permanent --add-port=4240/tcp           # Cilium health checks
     firewall-cmd --reload
     echo "  [OK] firewalld worker ports configured" >&2
 fi
