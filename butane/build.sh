@@ -44,8 +44,7 @@ if [[ ! -f "$TEMPLATE" ]]; then
 fi
 
 # Load only the required variables (secure: no blanket export)
-REQUIRED_VARS=("PASSWORD_HASH" "SSH_PUB_KEY")
-OPTIONAL_VARS=("HOSTNAME" "CRIO_VERSION" "KUBERNETES_VERSION")
+REQUIRED_VARS=("PASSWORD_HASH" "SSH_PUB_KEY" "HOSTNAME" "CRIO_VERSION" "KUBERNETES_VERSION")
 
 # Source .env safely: read each key=value line, only set whitelisted vars
 while IFS='=' read -r key value; do
@@ -55,7 +54,7 @@ while IFS='=' read -r key value; do
     value="${value#"${value%%[![:space:]]*}"}"    # strip leading whitespace
     value="${value%"${value##*[![:space:]]}"}"    # strip trailing whitespace
     value="${value#[\"']}"; value="${value%[\"']}" # strip optional quotes
-    for varname in "${REQUIRED_VARS[@]}" "${OPTIONAL_VARS[@]}"; do
+    for varname in "${REQUIRED_VARS[@]}"; do
         if [[ "$key" == "$varname" ]]; then
             printf -v "$varname" '%s' "$value"
             break
@@ -71,21 +70,16 @@ for var in "${REQUIRED_VARS[@]}"; do
     fi
 done
 
-# Set defaults for optional vars
-: "${HOSTNAME:=k8s-control-plane-001}"
-: "${CRIO_VERSION:=cri-o1.35}"
-: "${KUBERNETES_VERSION:=kubernetes1.35}"
-
-# Build envsubst variable list (only the vars we loaded)
-ENVSUBST_VARS=("\$PASSWORD_HASH" "\$SSH_PUB_KEY" "\$HOSTNAME" "\$CRIO_VERSION" "\$KUBERNETES_VERSION")
+# Build envsubst variable list (only the vars we loaded) — single space-separated argument
+ENVSUBST_VARS='$PASSWORD_HASH $SSH_PUB_KEY $HOSTNAME $CRIO_VERSION $KUBERNETES_VERSION'
 
 if $VALIDATE_ONLY; then
     echo "Validating $TEMPLATE..." >&2
-    envsubst "${ENVSUBST_VARS[@]}" < "$TEMPLATE" | butane --check
+    envsubst "$ENVSUBST_VARS" < "$TEMPLATE" | butane --check
     echo "Template is valid." >&2
     exit 0
 fi
 
 echo "Compiling $TEMPLATE -> $OUTPUT..." >&2
-envsubst "${ENVSUBST_VARS[@]}" < "$TEMPLATE" | butane -o "$OUTPUT"
+envsubst "$ENVSUBST_VARS" < "$TEMPLATE" | butane -o "$OUTPUT"
 echo "Generated $OUTPUT" >&2
