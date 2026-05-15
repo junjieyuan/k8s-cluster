@@ -94,7 +94,7 @@ Copy the `init/` directory to the VM, then SSH in.
 
 ```bash
 # Find the VM IP
-virsh net-dhcp-leases virbr0
+sudo virsh net-dhcp-leases default
 
 # Copy init scripts to the VM
 scp -r init/ core@<vm-ip>:~/
@@ -112,7 +112,7 @@ bash init/init-control-plane.sh --configure-kubectl --install-cni
 # bash init/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
 ```
 
-> **Note**: Use the VM's IP (from `virsh net-dhcp-leases virbr0`) as the endpoint. If you prefer a hostname like `control-plane.k8s.junjie.pro`, add it to `/etc/hosts` on every node first:
+> **Note**: Use the VM's IP (from `sudo virsh net-dhcp-leases default`) as the endpoint.
 > ```bash
 > echo '<control-plane-ip> control-plane.k8s.junjie.pro' | sudo tee -a /etc/hosts
 > ```
@@ -149,7 +149,7 @@ bash init/join-worker.sh \
 
 ## Important Notes
 
-- **DHCP IP**: VMs get dynamic IPs from `virbr0`. Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
+- **DHCP IP**: VMs get dynamic IPs from the default network (bridge `virbr0`). Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
 - **Token expiry**: `kubeadm token create` tokens expire after 24 hours. Regenerate if needed.
 - **Hostname resolution**: If using a hostname for `--endpoint` (e.g. `control-plane.k8s.junjie.pro`), ensure it resolves on every node via DNS or `/etc/hosts`.
 
