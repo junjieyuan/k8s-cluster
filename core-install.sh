@@ -97,6 +97,7 @@ virt-install \\
 EOF
     $BLOCKPULL && echo "virsh blockpull $VM_NAME vda --wait --verbose" >&2
     echo "virsh autostart $VM_NAME" >&2
+    echo "virsh dumpxml $VM_NAME | sed '/<sysinfo/,/<\\/sysinfo>/d' | virsh define /dev/stdin" >&2
     exit 0
 fi
 
@@ -129,6 +130,9 @@ echo "VM '$VM_NAME' provisioned successfully." >&2
 
 echo "Enabling autostart..." >&2
 virsh autostart "$VM_NAME"
+
+echo "Removing Ignition config (fwcfg) from VM definition..." >&2
+virsh dumpxml "$VM_NAME" | sed '/<sysinfo/,/<\/sysinfo>/d' | virsh define /dev/stdin
 
 if $BLOCKPULL; then
     echo "Pulling backing image into overlay (blockpull)..." >&2
