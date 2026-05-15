@@ -7,8 +7,12 @@ This is a k8s cluster provisioning project — Bash scripts and YAML templates, 
 ## Tool constraints
 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script. Never introduce Python, Node, or other languages.
-- **No package managers needed** — no `npm`, `pip`, `cargo`, etc. Runtime deps (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`, `cilium`) are system-level tools assumed pre-installed.
+- **No package managers needed** — no `npm`, `pip`, `cargo`, etc. Runtime deps (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by `cilium.sh` if missing.
 - **`uv` not relevant** — this project has no Python code.
+
+## Script invocation
+
+All scripts use `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to locate their resources. They can be run from any directory — `cd` is never required.
 
 ## Execution split: host vs VM
 
@@ -27,6 +31,8 @@ All privileged scripts auto-escalate via `exec sudo "$0" "$@"` at the top when `
 - `butane/build.sh` — runs butane/envsubst as normal user
 
 `cilium.sh` only escalates when installing the `cilium` CLI binary to `/usr/local/bin`.
+
+The caller never needs to prefix with `sudo`. Any `sudo` in README examples refers to manual commands (e.g. `tee /etc/hosts`), not project scripts.
 
 ## Butane/Ignition flow
 
