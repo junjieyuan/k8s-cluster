@@ -43,26 +43,11 @@ if [[ ! -f "$TEMPLATE" ]]; then
     exit 1
 fi
 
-# Load only the required variables (secure: no blanket export)
-REQUIRED_VARS=("PASSWORD_HASH" "SSH_PUB_KEY" "HOSTNAME" "CRIO_VERSION" "KUBERNETES_VERSION")
-
-# Source .env safely: read each key=value line, only set whitelisted vars
-while IFS='=' read -r key value; do
-    key="${key%%[[:space:]]*}"            # strip trailing whitespace from key
-    [[ -z "$key" || "$key" =~ ^# ]] && continue  # skip empty lines and comments
-    value="${value%%#*}"                             # strip inline comments
-    value="${value#"${value%%[![:space:]]*}"}"    # strip leading whitespace
-    value="${value%"${value##*[![:space:]]}"}"    # strip trailing whitespace
-    value="${value#[\"']}"; value="${value%[\"']}" # strip optional quotes
-    for varname in "${REQUIRED_VARS[@]}"; do
-        if [[ "$key" == "$varname" ]]; then
-            printf -v "$varname" '%s' "$value"
-            break
-        fi
-    done
-done < "$ENV_FILE"
+# Load variables
+set -a; source "$ENV_FILE"; set +a
 
 # Validate required vars
+REQUIRED_VARS=("PASSWORD_HASH" "SSH_PUB_KEY" "HOSTNAME" "CRIO_VERSION" "KUBERNETES_VERSION")
 for var in "${REQUIRED_VARS[@]}"; do
     if [[ -z "${!var:-}" ]]; then
         echo "Error: Required variable $var is not set in .env" >&2
