@@ -21,10 +21,10 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │   ├── node.bu.tmpl         # [host]  Butane template (user, hostname, kernel, packages)
 │   └── .env.example         # [host]  Configuration template
 └── init/
-    ├── init-node.sh         # [vm]    Kernel modules, sysctl, enable CRI-O/kubelet
-    ├── init-control-plane.sh # [vm]   kubeadm init + optional Cilium install
-    ├── join-worker.sh        # [vm]   kubeadm join for worker nodes
-    ├── join-control-plane.sh # [vm]   kubeadm join for additional control plane nodes
+    ├── init-node.sh         # [vm]    Kernel modules, sysctl, disable zram swap, enable CRI-O/kubelet
+    ├── init-control-plane.sh # [vm]   kubeadm init + firewalld (if present) + optional Cilium install
+    ├── join-worker.sh        # [vm]   kubeadm join + firewalld (if present) for worker nodes
+    ├── join-control-plane.sh # [vm]   kubeadm join + firewalld (if present) for control plane nodes
     ├── cilium.sh             # [vm]   Install Cilium CNI
     ├── kubeadm-init.yaml     # [vm]   kubeadm InitConfiguration + ClusterConfiguration
     ├── kubeadm-join-worker.yaml          # [vm]   kubeadm JoinConfiguration template (worker)
@@ -66,9 +66,9 @@ bash upload-image.sh fedora-coreos-*.qcow2
 ```bash
 cp butane/.env.example butane/.env
 # Edit .env:
-#   PASSWORD_HASH=<run: openssl passwd -6>
-#   SSH_PUB_KEY=<your public key>
-#   HOSTNAME=k8s-control-plane-001
+#   K8S_PASSWORD_HASH=<run: openssl passwd -6>
+#   K8S_SSH_PUB_KEY=<your public key>
+#   Other vars (K8S_HOSTNAME, K8S_CRIO_VERSION, K8S_KUBERNETES_VERSION) have defaults
 ```
 
 #### 3. Build Ignition Config
@@ -130,8 +130,8 @@ bash init/init-control-plane.sh --configure-kubectl --install-cni
 ssh core@<control-plane-ip> sudo kubeadm token create --print-join-command
 # Output: "kubeadm join <endpoint> --token xxx --discovery-token-ca-cert-hash sha256:xxx"
 
-# Edit .env, set HOSTNAME=k8s-worker-001, rebuild Ignition
-sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-worker-001/' butane/.env
+# Edit .env, set hostname, rebuild Ignition
+sed -i 's/^K8S_HOSTNAME=.*/K8S_HOSTNAME=k8s-worker-001/' butane/.env
 bash butane/build.sh
 
 # Provision worker VM (wait for first reboot)
@@ -145,6 +145,10 @@ bash core-install.sh --name k8s-worker-001 --cpus 2 --memory 4096
 > sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/ublue-os/ucore-minimal:stable-nvidia
 > # Reboot into the new image, then join as described below
 > ```
+> 
+> Ublue enables firewalld and zram swap by default. These are handled automatically:
+> - `init-node.sh` disables zram swap (stop + mask `systemd-zram-setup@zram0.service`)
+> - `join-worker.sh` opens firewalld ports via `kube-worker` service
 
 **Inside the VM**, after (optional) GPU switch and reboot:
 
@@ -163,7 +167,7 @@ bash init/join-worker.sh \
 **On the Host** — provision the new control plane VM:
 
 ```bash
-sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-control-plane-002/' butane/.env
+sed -i 's/^K8S_HOSTNAME=.*/K8S_HOSTNAME=k8s-control-plane-002/' butane/.env
 bash butane/build.sh
 bash core-install.sh --name k8s-control-plane-002 --cpus 4 --memory 8192
 ```
@@ -266,10 +270,10 @@ bash init/join-control-plane.sh \
 
 ### `.env` Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PASSWORD_HASH` | yes | — | `openssl passwd -6` output |
-| `SSH_PUB_KEY` | yes | — | SSH public key for core user |
-| `HOSTNAME` | no | `k8s-control-plane-001` | OS hostname |
-| `CRIO_VERSION` | no | `cri-o1.35` | CRI-O rpm-ostree package |
-| `KUBERNETES_VERSION` | no | `kubernetes1.35` | Kubernetes rpm-ostree package |
+| Variable | Description |
+|----------|-------------|
+| `K8S_PASSWORD_HASH` | `openssl passwd -6` output |
+| `K8S_SSH_PUB_KEY` | SSH public key for core user |
+| `K8S_HOSTNAME` | OS hostname (default: `k8s-control-plane-001`) |
+| `K8S_CRIO_VERSION` | CRI-O rpm-ostree package (default: `cri-o1.35`) |
+| `K8S_KUBERNETES_VERSION` | Kubernetes rpm-ostree package (default: `kubernetes1.35`)
