@@ -8,8 +8,9 @@ nodeRegistration:
 ---
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
-# Ensure this hostname resolves (DNS or /etc/hosts) before running init.
-controlPlaneEndpoint: "control-plane.k8s.junjie.pro:6443"
+# This file is a template: ${CONTROL_PLANE_ENDPOINT} is substituted at runtime by init-control-plane.sh.
+# Default: control-plane.k8s.junjie.pro:6443 (override with --endpoint).
+controlPlaneEndpoint: "${CONTROL_PLANE_ENDPOINT}"
 networking:
   # Must match the CIDR passed to cilium.sh.
   podSubnet: "172.16.0.0/12"

@@ -12,13 +12,14 @@ Usage: init-control-plane.sh [OPTIONS]
 Bootstrap a Kubernetes control plane with kubeadm and optionally install Cilium CNI.
 
 Options:
-  --config PATH        kubeadm init config (default: init/kubeadm-init.yaml)
-  --configure-kubectl  Copy admin.conf to ~/.kube/config after init
-  --install-cni        Run cilium.sh after init
-  --cni-version VER    Cilium version (default: 1.19.0)
-  --pod-cidr CIDR      Pod IPv4 CIDR (default: 172.16.0.0/12)
-  --dry-run            Print commands without executing
-  --help               Show this help
+  --endpoint HOST:PORT  API server endpoint (default: control-plane.k8s.junjie.pro:6443)
+  --config PATH         kubeadm init config template (default: init/kubeadm-init.yaml)
+  --configure-kubectl   Copy admin.conf to ~/.kube/config after init
+  --install-cni         Run cilium.sh after init
+  --cni-version VER     Cilium version (default: 1.19.0)
+  --pod-cidr CIDR       Pod IPv4 CIDR (default: 172.16.0.0/12)
+  --dry-run             Print commands without executing
+  --help                Show this help
 EOF
     exit "${1:-0}"
 }
@@ -27,11 +28,13 @@ CONFIGURE_KUBECTL=false
 INSTALL_CNI=false
 CNI_VERSION="1.19.0"
 POD_CIDR="172.16.0.0/12"
+CONTROL_PLANE_ENDPOINT="control-plane.k8s.junjie.pro:6443"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --config)            KUBEADM_CONFIG="$2"; shift 2 ;;
+        --endpoint)          CONTROL_PLANE_ENDPOINT="$2"; shift 2 ;;
         --configure-kubectl) CONFIGURE_KUBECTL=true;  shift ;;
         --install-cni)       INSTALL_CNI=true;         shift ;;
         --cni-version)       CNI_VERSION="$2";          shift 2 ;;
@@ -42,19 +45,22 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ! -f "$KUBEADM_CONFIG" ]]; then
-    echo "Error: kubeadm config not found at $KUBEADM_CONFIG" >&2
-    exit 1
-fi
-
 command -v kubeadm >/dev/null 2>&1 || { echo "Error: kubeadm not found" >&2; exit 1; }
+command -v envsubst >/dev/null 2>&1 || { echo "Error: envsubst not found" >&2; exit 1; }
+
+# Generate kubeadm config from template, substituting endpoint
+KUBEADM_GENERATED="$(mktemp /tmp/kubeadm-init.XXXXXX.yaml)"
+trap 'rm -f "$KUBEADM_GENERATED"' EXIT
+CONTROL_PLANE_ENDPOINT="$CONTROL_PLANE_ENDPOINT" envsubst '$CONTROL_PLANE_ENDPOINT' < "$KUBEADM_CONFIG" > "$KUBEADM_GENERATED"
 
 SUDO=""
 [[ $EUID -ne 0 ]] && SUDO="sudo"
 
 if $DRY_RUN; then
     echo "DRY-RUN:" >&2
-    echo "  $SUDO kubeadm init --config=$KUBEADM_CONFIG"
+    echo "  $SUDO kubeadm init --config=$KUBEADM_GENERATED" >&2
+    echo "Generated config:" >&2
+    cat "$KUBEADM_GENERATED" >&2
     if $CONFIGURE_KUBECTL; then
         echo "  mkdir -p \$HOME/.kube"
         echo "  $SUDO cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config"
@@ -66,8 +72,8 @@ if $DRY_RUN; then
     exit 0
 fi
 
-echo "Initializing Kubernetes control plane..." >&2
-$SUDO kubeadm init --config="$KUBEADM_CONFIG"
+echo "Initializing Kubernetes control plane at $CONTROL_PLANE_ENDPOINT..." >&2
+$SUDO kubeadm init --config="$KUBEADM_GENERATED"
 
 echo "" >&2
 echo "Control plane initialized successfully." >&2
