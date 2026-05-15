@@ -41,6 +41,15 @@ $SUDO sysctl net.bridge.bridge-nf-call-iptables \
              net.ipv6.conf.all.forwarding \
              net.ipv6.conf.default.forwarding >&2
 
+echo "Checking CRI-O and kubelet are installed..." >&2
+for bin in crio kubelet; do
+    if ! command -v "$bin" >/dev/null 2>&1; then
+        echo "  [FAIL] $bin not found — rpm-ostree install may have failed" >&2
+        exit 1
+    fi
+    echo "  [OK] $bin" >&2
+done
+
 echo "Enabling CRI-O and kubelet..." >&2
 $SUDO systemctl enable --now crio
 $SUDO systemctl enable --now kubelet
