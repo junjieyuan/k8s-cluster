@@ -8,6 +8,10 @@ passwd:
         - ${SSH_PUB_KEY}
 storage:
   files:
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: ${HOSTNAME}
     # Phase 1 (Ignition): write kernel module config and sysctl params to disk.
     # These files take effect on boot for sysctl, but kernel modules still need
     # manual loading via modprobe in init-node.sh (phase 2).

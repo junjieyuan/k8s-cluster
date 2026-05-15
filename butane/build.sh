@@ -40,7 +40,7 @@ fi
 
 # Load only the required variables (secure: no blanket export)
 REQUIRED_VARS=("PASSWORD_HASH" "SSH_PUB_KEY")
-OPTIONAL_VARS=("CRIO_VERSION" "KUBERNETES_VERSION")
+OPTIONAL_VARS=("HOSTNAME" "CRIO_VERSION" "KUBERNETES_VERSION")
 
 # Source .env safely: read each key=value line, only set whitelisted vars
 while IFS='=' read -r key value; do
@@ -64,11 +64,12 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 # Set defaults for optional vars
+: "${HOSTNAME:=k8s-control-plane-001}"
 : "${CRIO_VERSION:=cri-o1.35}"
 : "${KUBERNETES_VERSION:=kubernetes1.35}"
 
 # Build envsubst variable list (only the vars we loaded)
-ENVSUBST_VARS=("\$PASSWORD_HASH" "\$SSH_PUB_KEY" "\$CRIO_VERSION" "\$KUBERNETES_VERSION")
+ENVSUBST_VARS=("\$PASSWORD_HASH" "\$SSH_PUB_KEY" "\$HOSTNAME" "\$CRIO_VERSION" "\$KUBERNETES_VERSION")
 
 if $VALIDATE_ONLY; then
     echo "Validating $TEMPLATE..." >&2
