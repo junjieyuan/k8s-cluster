@@ -10,8 +10,8 @@ Provision a Fedora CoreOS VM backed by a QCOW2 image, injecting an Ignition conf
 Options:
   --name NAME         VM name (default: k8s-control-plane-001)
   --cpus N            Number of vCPUs (default: 2)
-  --memory MB         Memory in MiB (default: 4096)
-  --disk-size GB      Disk size in GiB (default: 64)
+  --memory MiB         Memory in MiB (default: 4096)
+  --disk-size GiB      Disk size in GiB (default: 64)
   --image PATH        Path to FCOS QCOW2 backing image (required unless default exists)
   --network BRIDGE    Network bridge name (default: virbr0)
   --os-variant OS     osinfo variant (default: fedora-coreos-stable)
