@@ -55,9 +55,6 @@ for bin in kubeadm envsubst; do
     command -v "$bin" >/dev/null 2>&1 || { echo "Error: $bin not found" >&2; exit 1; }
 done
 
-SUDO=""
-[[ $EUID -ne 0 ]] && SUDO="sudo"
-
 # Generate join config from template, substituting token/hash/endpoint
 JOIN_CONFIG="$(mktemp /tmp/kubeadm-join.XXXXXX.yaml)"
 trap 'rm -f "$JOIN_CONFIG"' EXIT
