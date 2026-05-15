@@ -2,13 +2,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JOIN_TEMPLATE="${SCRIPT_DIR}/kubeadm-join.yaml"
+JOIN_TEMPLATE="${SCRIPT_DIR}/kubeadm-join-worker.yaml"
 
 usage() {
     cat <<'EOF'
-Usage: join-cluster.sh --token TOKEN --hash HASH [OPTIONS]
+Usage: join-worker.sh --token TOKEN --hash HASH [OPTIONS]
 
-Join a node to an existing Kubernetes cluster.
+Join a worker node to an existing Kubernetes cluster.
 
 Required:
   --token TOKEN     Bootstrap token (from kubeadm token create --print-join-command)
@@ -16,7 +16,7 @@ Required:
   --endpoint HOST   API server endpoint, e.g. control-plane.example.com:6443
 
 Options:
-  --config PATH     kubeadm join config template (default: init/kubeadm-join.yaml)
+  --config PATH     kubeadm join config template (default: init/kubeadm-join-worker.yaml)
   --dry-run         Print the join command without executing
   --help            Show this help
 EOF
