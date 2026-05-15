@@ -46,6 +46,10 @@ done
 [[ -z "$ENDPOINT" ]] && { echo "Error: --endpoint is required" >&2; usage 1; }
 [[ -f "$JOIN_TEMPLATE" ]] || { echo "Error: Join template not found at $JOIN_TEMPLATE" >&2; exit 1; }
 
+for bin in kubeadm envsubst; do
+    command -v "$bin" >/dev/null 2>&1 || { echo "Error: $bin not found" >&2; exit 1; }
+done
+
 SUDO=""
 [[ $EUID -ne 0 ]] && SUDO="sudo"
 
@@ -53,8 +57,7 @@ SUDO=""
 JOIN_CONFIG="$(mktemp /tmp/kubeadm-join.XXXXXX.yaml)"
 trap 'rm -f "$JOIN_CONFIG"' EXIT
 
-export TOKEN HASH ENDPOINT
-envsubst '$TOKEN $HASH $ENDPOINT' < "$JOIN_TEMPLATE" > "$JOIN_CONFIG"
+TOKEN="$TOKEN" HASH="$HASH" ENDPOINT="$ENDPOINT" envsubst '$TOKEN $HASH $ENDPOINT' < "$JOIN_TEMPLATE" > "$JOIN_CONFIG"
 
 if $DRY_RUN; then
     echo "DRY-RUN:" >&2

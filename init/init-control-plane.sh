@@ -47,6 +47,8 @@ if [[ ! -f "$KUBEADM_CONFIG" ]]; then
     exit 1
 fi
 
+command -v kubeadm >/dev/null 2>&1 || { echo "Error: kubeadm not found" >&2; exit 1; }
+
 SUDO=""
 [[ $EUID -ne 0 ]] && SUDO="sudo"
 
