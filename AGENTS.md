@@ -8,7 +8,6 @@ This is a k8s cluster provisioning project — Bash scripts and YAML templates, 
 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script. Never introduce Python, Node, or other languages.
 - **No package managers needed** — no `npm`, `pip`, `cargo`, etc. Runtime deps (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by `cilium.sh` if missing.
-- **`uv` not relevant** — this project has no Python code.
 
 ## Script invocation
 

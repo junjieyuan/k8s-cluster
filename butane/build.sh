@@ -55,7 +55,7 @@ for var in "${REQUIRED_VARS[@]}"; do
     fi
 done
 
-# Build envsubst variable list (only the vars we loaded) — single space-separated argument
+# Build envsubst variable list — single space-separated argument
 ENVSUBST_VARS='$K8S_PASSWORD_HASH $K8S_SSH_PUB_KEY $K8S_HOSTNAME $K8S_CRIO_VERSION $K8S_KUBERNETES_VERSION'
 
 if $VALIDATE_ONLY; then

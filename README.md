@@ -108,8 +108,6 @@ ssh core@<vm-ip>
 **Inside the VM**, after the first reboot completes (~2-3 min):
 
 ```bash
-scp -r init/ core@<vm-ip>:~/
-ssh core@<vm-ip>
 bash init/init-node.sh
 bash init/init-control-plane.sh --configure-kubectl --install-cni
 # Or with a custom endpoint:
@@ -153,8 +151,6 @@ bash core-install.sh --name k8s-worker-001 --cpus 2 --memory 4096
 **Inside the VM**, after (optional) GPU switch and reboot:
 
 ```bash
-scp -r init/ core@<worker-ip>:~/
-ssh core@<worker-ip>
 bash init/init-node.sh
 bash init/join-worker.sh \
     --token <token> \
@@ -180,8 +176,6 @@ bash core-install.sh --name k8s-control-plane-002 --cpus 4 --memory 8192
 **Inside the VM**, after reboot completes:
 
 ```bash
-scp -r init/ core@<cp-ip>:~/
-ssh core@<cp-ip>
 bash init/init-node.sh
 bash init/join-control-plane.sh \
     --token <token> \
