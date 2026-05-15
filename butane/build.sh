@@ -29,6 +29,11 @@ ENV_FILE="${SCRIPT_DIR}/.env"
 TEMPLATE="${SCRIPT_DIR}/node.bu.tmpl"
 OUTPUT="${SCRIPT_DIR}/node.ign"
 
+# Check dependencies
+for bin in butane envsubst; do
+    command -v "$bin" >/dev/null 2>&1 || { echo "Error: $bin not found" >&2; exit 1; }
+done
+
 if [[ ! -f "$ENV_FILE" ]]; then
     echo "Error: .env file not found. Copy .env.example to .env and fill in the values." >&2
     exit 1
@@ -46,7 +51,10 @@ OPTIONAL_VARS=("HOSTNAME" "CRIO_VERSION" "KUBERNETES_VERSION")
 while IFS='=' read -r key value; do
     key="${key%%[[:space:]]*}"            # strip trailing whitespace from key
     [[ -z "$key" || "$key" =~ ^# ]] && continue  # skip empty lines and comments
-    value="${value#[\"']}"; value="${value%[\"']}"  # strip optional quotes
+    value="${value%%#*}"                             # strip inline comments
+    value="${value#"${value%%[![:space:]]*}"}"    # strip leading whitespace
+    value="${value%"${value##*[![:space:]]}"}"    # strip trailing whitespace
+    value="${value#[\"']}"; value="${value%[\"']}" # strip optional quotes
     for varname in "${REQUIRED_VARS[@]}" "${OPTIONAL_VARS[@]}"; do
         if [[ "$key" == "$varname" ]]; then
             printf -v "$varname" '%s' "$value"
