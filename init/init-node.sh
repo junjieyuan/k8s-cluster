@@ -23,24 +23,37 @@ if [[ $EUID -ne 0 ]]; then
     SUDO="sudo"
 fi
 
-echo "Loading kernel modules..." >&2
-$SUDO modprobe overlay
-$SUDO modprobe br_netfilter
-
-echo "Applying sysctl parameters..." >&2
-$SUDO sysctl --system >/dev/null
-
+# Load kernel modules (systemd-modules-load should have done this after reboot;
+# verify and only load if missing).
 echo "Verifying kernel modules..." >&2
-lsmod | grep -q br_netfilter && echo "  [OK] br_netfilter" >&2 || { echo "  [FAIL] br_netfilter" >&2; exit 1; }
-lsmod | grep -q overlay      && echo "  [OK] overlay"      >&2 || { echo "  [FAIL] overlay" >&2; exit 1; }
+for mod in overlay br_netfilter; do
+    if lsmod | grep -q "^${mod}\b"; then
+        echo "  [OK] $mod" >&2
+    else
+        echo "  [MISS] $mod — loading now" >&2
+        $SUDO modprobe "$mod"
+    fi
+done
 
+# Apply sysctl (systemd-sysctl should have done this; verify and apply if needed).
 echo "Verifying sysctl params..." >&2
-$SUDO sysctl net.bridge.bridge-nf-call-iptables \
+$SUDO sysctl --system >/dev/null 2>&1
+
+for param in net.bridge.bridge-nf-call-iptables \
              net.bridge.bridge-nf-call-ip6tables \
              net.ipv4.ip_forward \
              net.ipv6.conf.all.forwarding \
-             net.ipv6.conf.default.forwarding >&2
+             net.ipv6.conf.default.forwarding; do
+    val=$($SUDO sysctl -n "$param" 2>/dev/null || echo "unknown")
+    if [[ "$val" == "1" ]]; then
+        echo "  [OK] $param = $val" >&2
+    else
+        echo "  [FAIL] $param = $val (expected 1)" >&2
+        exit 1
+    fi
+done
 
+# Check binaries installed by rpm-ostree
 echo "Checking CRI-O and kubelet are installed..." >&2
 for bin in crio kubelet; do
     if ! command -v "$bin" >/dev/null 2>&1; then
