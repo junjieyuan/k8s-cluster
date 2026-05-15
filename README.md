@@ -105,37 +105,48 @@ ssh core@<vm-ip>
 
 #### 5. Initialize Control Plane
 
+**Inside the VM**, after the first reboot completes (~2-3 min):
+
 ```bash
+scp -r init/ core@<vm-ip>:~/
+ssh core@<vm-ip>
 bash init/init-node.sh
 bash init/init-control-plane.sh --configure-kubectl --install-cni
 # Or with a custom endpoint:
 # bash init/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
 ```
 
-> **Note**: Use the VM's IP (from `sudo virsh net-dhcp-leases default`) as the endpoint.
+> **Note**: Use the VM's IP as the endpoint, and update DNS/hosts:
 > ```bash
 > echo '<control-plane-ip> control-plane.k8s.junjie.pro' | sudo tee -a /etc/hosts
 > ```
 
 #### 6. Add Worker Nodes (Optional)
 
-**On the Host** — get join token from control plane, then provision worker:
+**On the Host** — get join token, then provision the worker:
 
 ```bash
-# Get join info from control plane (run via SSH or on control plane VM)
-# Token expires after 24h — regenerate with the same command if needed.
+# Get join info from control plane
 ssh core@<control-plane-ip> sudo kubeadm token create --print-join-command
-# Output: kubeadm join <endpoint> --token xxx --discovery-token-ca-cert-hash sha256:xxx
+# Output: "kubeadm join <endpoint> --token xxx --discovery-token-ca-cert-hash sha256:xxx"
 
 # Edit .env, set HOSTNAME=k8s-worker-001, rebuild Ignition
 sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-worker-001/' butane/.env
 bash butane/build.sh
 
-# Provision worker VM
+# Provision worker VM (wait for first reboot)
 bash core-install.sh --name k8s-worker-001 --cpus 2 --memory 4096
 ```
 
-**Inside the VM** — copy init scripts, SSH in, then join:
+> **NVIDIA GPU workers**: For nodes with GPUs, after the initial install reboots and before joining:
+> 
+> ```bash
+> # SSH in, switch to ublue OS image which includes NVIDIA drivers
+> sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/ublue-os/ucore-minimal:stable-nvidia
+> # Reboot into the new image, then join as described below
+> ```
+
+**Inside the VM**, after (optional) GPU switch and reboot:
 
 ```bash
 scp -r init/ core@<worker-ip>:~/
@@ -149,16 +160,20 @@ bash init/join-worker.sh \
 
 #### 7. Add Control Plane Nodes (Optional)
 
-**On the Host** — provision the new VM:
+**On the Host** — provision the new control plane VM:
 
 ```bash
-# Edit .env, set HOSTNAME=k8s-control-plane-002, rebuild Ignition
 sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-control-plane-002/' butane/.env
 bash butane/build.sh
 bash core-install.sh --name k8s-control-plane-002 --cpus 4 --memory 8192
 ```
 
-**Inside the VM** — init node, then join as control plane:
+> **Note**: Get the certificate key from an existing control plane node:
+> ```bash
+> sudo kubeadm init phase upload-certs --upload-certs
+> ```
+
+**Inside the VM**, after reboot completes:
 
 ```bash
 scp -r init/ core@<cp-ip>:~/
@@ -170,11 +185,6 @@ bash init/join-control-plane.sh \
     --endpoint <control-plane-ip>:6443 \
     --certificate-key <key>
 ```
-
-> **Note**: The certificate key is obtained from an existing control plane node:
-> ```bash
-> sudo kubeadm init phase upload-certs --upload-certs
-> ```
 
 ## Important Notes
 
