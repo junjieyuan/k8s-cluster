@@ -96,6 +96,7 @@ virt-install \\
     --noautoconsole
 EOF
     $BLOCKPULL && echo "virsh blockpull $VM_NAME vda --wait --verbose" >&2
+    echo "virsh autostart $VM_NAME" >&2
     exit 0
 fi
 
@@ -125,6 +126,9 @@ virt-install \
 trap - ERR
 
 echo "VM '$VM_NAME' provisioned successfully." >&2
+
+echo "Enabling autostart..." >&2
+virsh autostart "$VM_NAME"
 
 if $BLOCKPULL; then
     echo "Pulling backing image into overlay (blockpull)..." >&2
