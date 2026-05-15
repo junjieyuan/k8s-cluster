@@ -31,11 +31,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-SUDO=""
-if [[ $EUID -ne 0 ]]; then
-    SUDO="sudo"
-fi
-
 # Install cilium CLI if missing
 if ! command -v cilium >/dev/null 2>&1; then
     # Need root to install to /usr/local/bin
@@ -65,7 +60,7 @@ if ! command -v cilium >/dev/null 2>&1; then
     (cd "$TMPDIR" && sha256sum --check "${TARBALL}.sha256sum")
 
     echo "  Installing to /usr/local/bin..." >&2
-    $SUDO tar xzvfC "$TMPDIR/$TARBALL" /usr/local/bin >/dev/null
+    tar xzvfC "$TMPDIR/$TARBALL" /usr/local/bin >/dev/null
 
     echo "  cilium CLI v${CLI_VERSION} installed" >&2
 fi
