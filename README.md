@@ -147,6 +147,35 @@ bash init/join-worker.sh \
     --endpoint <control-plane-ip>:6443
 ```
 
+#### 7. Add Control Plane Nodes (Optional)
+
+**On the Host** — provision the new VM:
+
+```bash
+# Edit .env, set HOSTNAME=k8s-control-plane-002, rebuild Ignition
+sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-control-plane-002/' butane/.env
+bash butane/build.sh
+bash core-install.sh --name k8s-control-plane-002 --cpus 4 --memory 8192
+```
+
+**Inside the VM** — init node, then join as control plane:
+
+```bash
+scp -r init/ core@<cp-ip>:~/
+ssh core@<cp-ip>
+bash init/init-node.sh
+bash init/join-control-plane.sh \
+    --token <token> \
+    --hash sha256:<hash> \
+    --endpoint <control-plane-ip>:6443 \
+    --certificate-key <key>
+```
+
+> **Note**: The certificate key is obtained from an existing control plane node:
+> ```bash
+> sudo kubeadm init phase upload-certs --upload-certs
+> ```
+
 ## Important Notes
 
 - **DHCP IP**: VMs get dynamic IPs from the default network (bridge `virbr0`). Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
