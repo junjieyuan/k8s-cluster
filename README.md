@@ -105,9 +105,9 @@ ssh core@<vm-ip>
 
 ```bash
 bash init/init-node.sh
-sudo bash init/init-control-plane.sh --configure-kubectl --install-cni
+bash init/init-control-plane.sh --configure-kubectl --install-cni
 # Or with a custom endpoint:
-# sudo bash init/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
+# bash init/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
 ```
 
 > **Note**: Use the VM's IP (from `virsh net-dhcp-leases virbr0`) as the endpoint. If you prefer a hostname like `control-plane.k8s.junjie.pro`, add it to `/etc/hosts` on every node first:
