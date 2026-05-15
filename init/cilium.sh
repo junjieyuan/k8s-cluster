@@ -42,6 +42,7 @@ if ! command -v cilium >/dev/null 2>&1; then
     [[ "$(uname -m)" == "aarch64" ]] && CLI_ARCH="arm64"
 
     CLI_VERSION=$(curl -sSf https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+    CLI_VERSION="${CLI_VERSION#v}"  # strip leading v if present
     TARBALL="cilium-linux-${CLI_ARCH}.tar.gz"
     TMPDIR="$(mktemp -d)"
     trap 'rm -rf "$TMPDIR"' EXIT
