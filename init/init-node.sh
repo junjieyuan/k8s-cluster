@@ -66,16 +66,4 @@ echo "Enabling CRI-O and kubelet..." >&2
 systemctl enable --now crio
 systemctl enable --now kubelet
 
-# Open firewall ports if firewalld is active (ublue GPU workers have it; FCOS does not)
-if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
-    echo "Configuring firewalld for Kubernetes worker..." >&2
-    firewall-cmd --permanent --add-port=10250/tcp        # kubelet API
-    firewall-cmd --permanent --add-port=30000-32767/tcp   # NodePort services
-    firewall-cmd --permanent --add-port=30000-32767/udp   # NodePort services
-    firewall-cmd --permanent --add-port=8472/udp          # Cilium VXLAN overlay (fallback)
-    firewall-cmd --permanent --add-port=6081/udp          # Cilium Geneve overlay (default)
-    firewall-cmd --reload
-    echo "  [OK] firewalld ports opened" >&2
-fi
-
 echo "Node initialization complete." >&2
