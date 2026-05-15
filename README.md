@@ -12,19 +12,19 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 ### Files
 
 ```
-├── core-install.sh          # Provision FCOS VMs via virt-install
-├── upload-image.sh          # Upload disk image to libvirt storage pool
+├── core-install.sh          # [host]  Provision FCOS VMs via virt-install
+├── upload-image.sh          # [host]  Upload disk image to libvirt storage pool
 ├── butane/
-│   ├── build.sh             # Compile Butane template → Ignition config
-│   ├── node.bu.tmpl         # Butane template (user, hostname, kernel, packages)
-│   └── .env.example         # Configuration template
+│   ├── build.sh             # [host]  Compile Butane template → Ignition config
+│   ├── node.bu.tmpl         # [host]  Butane template (user, hostname, kernel, packages)
+│   └── .env.example         # [host]  Configuration template
 └── init/
-    ├── init-node.sh         # Kernel modules, sysctl, enable CRI-O/kubelet
-    ├── init-control-plane.sh # kubeadm init + optional Cilium install
-    ├── join-cluster.sh      # kubeadm join for worker nodes
-    ├── cilium.sh            # Install Cilium CNI
-    ├── kubeadm-init.yaml    # kubeadm InitConfiguration + ClusterConfiguration
-    └── kubeadm-join.yaml    # kubeadm JoinConfiguration template
+    ├── init-node.sh         # [vm]    Kernel modules, sysctl, enable CRI-O/kubelet
+    ├── init-control-plane.sh # [vm]   kubeadm init + optional Cilium install
+    ├── join-cluster.sh      # [vm]    kubeadm join for worker nodes
+    ├── cilium.sh            # [vm]    Install Cilium CNI
+    ├── kubeadm-init.yaml    # [vm]    kubeadm InitConfiguration + ClusterConfiguration
+    └── kubeadm-join.yaml    # [vm]    kubeadm JoinConfiguration template
 ```
 
 ### Network CIDRs
@@ -45,7 +45,9 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 
 ## Usage
 
-### 1. Download and Upload FCOS Image
+### On the Host
+
+#### 1. Download and Upload FCOS Image
 
 ```bash
 # Download latest stable FCOS QCOW2
@@ -55,7 +57,7 @@ curl -LO https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/late
 bash upload-image.sh fedora-coreos-*.qcow2
 ```
 
-### 2. Configure Credentials
+#### 2. Configure Credentials
 
 ```bash
 cp butane/.env.example butane/.env
@@ -65,14 +67,14 @@ cp butane/.env.example butane/.env
 #   HOSTNAME=k8s-control-plane-001
 ```
 
-### 3. Build Ignition Config
+#### 3. Build Ignition Config
 
 ```bash
 bash butane/build.sh          # generates butane/node.ign
 bash butane/build.sh --validate  # validate only, no output
 ```
 
-### 4. Provision Control Plane VM
+#### 4. Provision Control Plane VM
 
 ```bash
 bash core-install.sh                          # defaults
@@ -82,31 +84,49 @@ bash core-install.sh --dry-run                # preview without executing
 
 The VM boots, applies Ignition config, installs CRI-O and Kubernetes via rpm-ostree, and reboots. Wait ~2-3 minutes for the reboot to complete.
 
-### 5. Initialize the Node
+### Inside the VM
+
+Copy the `init/` directory to the VM, then SSH in.
 
 ```bash
-# SSH into the VM (use virsh net-dhcp-leases virbr0 to find IP)
-ssh core@<vm-ip>
+# Find the VM IP
+virsh net-dhcp-leases virbr0
 
-# Run init scripts (clone the repo or copy them over)
+# Copy init scripts to the VM
+scp -r init/ core@<vm-ip>:~/
+
+# SSH in
+ssh core@<vm-ip>
+```
+
+#### 5. Initialize Control Plane
+
+```bash
 bash init/init-node.sh
 sudo bash init/init-control-plane.sh --configure-kubectl --install-cni
 ```
 
-### 6. Add Worker Nodes (Optional)
+#### 6. Add Worker Nodes (Optional)
+
+**On the Host** — get join token from control plane, then provision worker:
 
 ```bash
-# On the control plane, get the join info:
-sudo kubeadm token create --print-join-command
+# Get join info from control plane (run via SSH or on control plane VM)
+ssh core@<control-plane-ip> sudo kubeadm token create --print-join-command
 # Output: kubeadm join control-plane.k8s.junjie.pro:6443 --token xxx --discovery-token-ca-cert-hash sha256:xxx
 
 # Edit .env, set HOSTNAME=k8s-worker-001, rebuild Ignition
+sed -i 's/^HOSTNAME=.*/HOSTNAME=k8s-worker-001/' butane/.env
 bash butane/build.sh
 
 # Provision worker VM
 bash core-install.sh --name k8s-worker-001 --cpus 2 --memory 4096 --no-blockpull
+```
 
-# SSH into worker, init node, join cluster
+**Inside the VM** — copy init scripts, SSH in, then join:
+
+```bash
+scp -r init/ core@<worker-ip>:~/
 ssh core@<worker-ip>
 bash init/init-node.sh
 bash init/join-cluster.sh \
