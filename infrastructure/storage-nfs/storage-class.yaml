@@ -13,7 +13,8 @@ parameters:
 reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
 volumeBindingMode: Immediate
 mountOptions:
-  - nfsvers=4.2
+  - nfsvers=3
+  - nolock
   - hard                            # hard mount prevents I/O errors on transient network blips
   - rsize=524288
   - wsize=524288                    # 512K r/w block size for throughput

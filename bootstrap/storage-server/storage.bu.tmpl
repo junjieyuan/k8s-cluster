@@ -16,7 +16,7 @@ storage:
       mode: 0644
       contents:
         inline: |
-          /var/nfs-data  192.168.122.0/24(rw,sync,no_root_squash,no_subtree_check)
+          /var/nfs-data  192.168.122.0/24(rw,sync,no_root_squash,no_subtree_check,fsid=0)
   directories:
     - path: /var/nfs-data
       mode: 0755
