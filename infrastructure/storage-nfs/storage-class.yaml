@@ -8,13 +8,12 @@ provisioner: nfs.csi.k8s.io
 allowVolumeExpansion: true
 parameters:
   server: storage-001.k8s.junjie.pro
-  share: /var/nfs-data
+  share: /                          # NFSv4 root (fsid=0 maps to /var/nfs-data)
   subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}"    # organizes PVs by namespace/pvc
 reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
 volumeBindingMode: Immediate
 mountOptions:
-  - nfsvers=3
-  - nolock
+  - nfsvers=4.2
   - hard                            # hard mount prevents I/O errors on transient network blips
   - rsize=524288
   - wsize=524288                    # 512K r/w block size for throughput
