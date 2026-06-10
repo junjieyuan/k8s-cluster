@@ -1,25 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Auto-escalate to root (virsh, virt-install, and image paths require privileges)
-if [[ $EUID -ne 0 ]]; then
-    exec sudo "$0" "$@"
-fi
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
     cat <<'EOF'
-Usage: vm-deploy.sh [OPTIONS]
+Usage: vm-deploy.sh --type TYPE [OPTIONS]
 
 Provision a Fedora CoreOS VM backed by a QCOW2 image, injecting an Ignition config.
+The --type argument determines how the ignition is built and which extra VM
+configuration is applied (e.g. GPU passthrough).
 
-Either --type or --ignition is required:
-  --type TYPE       Node type (k8s-node or storage-server). Runs the corresponding
-                    build.sh to generate the Ignition config before deploying.
-  --ignition PATH   Path to .ign file (skip build, deploy only).
+Supported types: k8s-node, k8s-gpu-node, storage-server
 
 Options:
+  --type TYPE       Node type (k8s-node, k8s-gpu-node, or storage-server). Required.
   --name NAME       VM name (default: k8s-control-plane-001)
   --cpus N          Number of vCPUs (default: 2)
   --memory MiB      Memory in MiB (default: 4096)
@@ -43,7 +38,6 @@ VM_IMAGE=""
 VM_OS="fedora-coreos-stable"
 VM_DISK_SIZE="64"
 VM_NETWORK="virbr0"
-IGNITION_FILE=""
 DRY_RUN=false
 BLOCKPULL=true
 
@@ -58,7 +52,6 @@ while [[ $# -gt 0 ]]; do
         --image)      VM_IMAGE="$2";      shift 2 ;;
         --network)    VM_NETWORK="$2";    shift 2 ;;
         --os-variant) VM_OS="$2";         shift 2 ;;
-        --ignition)   IGNITION_FILE="$2"; shift 2 ;;
         --no-blockpull) BLOCKPULL=false;  shift ;;
         --dry-run)    DRY_RUN=true;       shift ;;
         --help)       usage 0 ;;
@@ -69,39 +62,71 @@ done
 # --- Pre-flight helper ---
 fail() { echo "Error: $*" >&2; exit 1; }
 
-# --- Resolve ignition source ---
-if [[ -n "$NODE_TYPE" && -n "$IGNITION_FILE" ]]; then
-    fail "--type and --ignition are mutually exclusive"
+# --- Resolve type ---
+if [[ -z "$NODE_TYPE" ]]; then
+    fail "--type is required (one of: k8s-node, k8s-gpu-node, storage-server)"
 fi
 
-if [[ -n "$NODE_TYPE" ]]; then
-    case "$NODE_TYPE" in
-        k8s-node)
-            BUILD_DIR="${SCRIPT_DIR}/k8s-node"
-            IGNITION_FILE="${BUILD_DIR}/node.ign"
-            ;;
-        storage-server)
-            BUILD_DIR="${SCRIPT_DIR}/storage-server"
-            IGNITION_FILE="${BUILD_DIR}/storage.ign"
-            ;;
-        *)
-            fail "Unknown type: $NODE_TYPE (expected k8s-node or storage-server)"
-            ;;
-    esac
+TYPE_DIR="${SCRIPT_DIR}/${NODE_TYPE}"
+[[ -d "$TYPE_DIR" ]] || fail "Type directory not found: $TYPE_DIR"
 
-    BUILD_SCRIPT="${BUILD_DIR}/build.sh"
-    [[ -f "$BUILD_SCRIPT" ]] || fail "Build script not found: $BUILD_SCRIPT"
+DEPLOY_SCRIPT="${TYPE_DIR}/deploy.sh"
+[[ -f "$DEPLOY_SCRIPT" ]] || fail "deploy.sh not found in $TYPE_DIR"
 
-    if $DRY_RUN; then
-        echo "DRY-RUN: would run $BUILD_SCRIPT" >&2
-    else
-        echo "Building Ignition config for $NODE_TYPE..." >&2
-        bash "$BUILD_SCRIPT"
+# Source type-specific deploy functions
+# shellcheck disable=SC1090
+source "$DEPLOY_SCRIPT"
+
+# Check that required functions are defined
+for fn in deploy_build deploy_extra_args deploy_finalize; do
+    if ! declare -F "$fn" >/dev/null 2>&1; then
+        fail "deploy.sh must define function: $fn"
     fi
+done
+
+# --- Build ignition ---
+echo "Building Ignition config for $NODE_TYPE..." >&2
+deploy_build
+
+IGNITION_FILE="${IGNITION_FILE:-}"
+if [[ -z "$IGNITION_FILE" ]]; then
+    fail "deploy_build did not set IGNITION_FILE"
 fi
 
-if [[ -z "$IGNITION_FILE" ]]; then
-    fail "Either --type or --ignition is required"
+# --- Dry-run (exit before escalating to root) ---
+if $DRY_RUN; then
+    # Resolve default image for display (may not be accessible as user, but
+    # the path is informational in dry-run mode).
+    dry_image="${VM_IMAGE}"
+    if [[ -z "$dry_image" ]]; then
+        dry_image=$(ls -t /var/lib/libvirt/images/fedora-coreos-*.qcow2 2>/dev/null | head -1 || true)
+        [[ -z "$dry_image" ]] && dry_image="/var/lib/libvirt/images/fedora-coreos-<latest>.qcow2"
+    fi
+    echo "DRY-RUN: would execute:" >&2
+    cat <<DRYEOF >&2
+virt-install \\
+    --connect=qemu:///system \\
+    --name=$VM_NAME \\
+    --vcpus=$VM_CPUS \\
+    --memory=$VM_MEMORY \\
+    --os-variant=$VM_OS \\
+    --import \\
+    --disk=size=$VM_DISK_SIZE,backing_store=$dry_image \\
+    --graphics=none \\
+    --network bridge=$VM_NETWORK \\
+    --sysinfo type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file=$IGNITION_FILE \\
+    --noautoconsole$(deploy_extra_args | sed 's/^/ \\\n    /')
+DRYEOF
+    $BLOCKPULL && echo "virsh blockpull $VM_NAME vda --wait --verbose" >&2
+    echo "virsh autostart $VM_NAME" >&2
+    echo "virsh dumpxml $VM_NAME | sed '/<sysinfo/,/<\/sysinfo>/d' | virsh define /dev/stdin" >&2
+    echo "[deploy_finalize $VM_NAME]" >&2
+    exit 0
+fi
+
+# --- Escalate to root for provisioning ---
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
 fi
 
 # --- Default image path if not specified ---
@@ -114,36 +139,13 @@ if [[ -z "$VM_IMAGE" ]]; then
 fi
 
 # --- Pre-flight checks ---
-[[ -f "$VM_IMAGE" ]]      || fail "FCOS image not found at $VM_IMAGE"
+[[ -f "$VM_IMAGE"      ]] || fail "FCOS image not found at $VM_IMAGE"
 [[ -f "$IGNITION_FILE" ]] || fail "Ignition file not found at $IGNITION_FILE"
 command -v virt-install >/dev/null 2>&1 || fail "virt-install not found (install virt-install package)"
 command -v virsh >/dev/null 2>&1       || fail "virsh not found (install libvirt-client)"
 
 if virsh dominfo "$VM_NAME" &>/dev/null; then
     fail "VM '$VM_NAME' already exists. Remove it with: virsh destroy $VM_NAME && virsh undefine $VM_NAME"
-fi
-
-# --- Dry-run ---
-if $DRY_RUN; then
-    echo "DRY-RUN: would execute:" >&2
-    cat <<EOF >&2
-virt-install \\
-    --connect=qemu:///system \\
-    --name=$VM_NAME \\
-    --vcpus=$VM_CPUS \\
-    --memory=$VM_MEMORY \\
-    --os-variant=$VM_OS \\
-    --import \\
-    --disk=size=$VM_DISK_SIZE,backing_store=$VM_IMAGE \\
-    --graphics=none \\
-    --network bridge=$VM_NETWORK \\
-    --sysinfo type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file=$IGNITION_FILE \\
-    --noautoconsole
-EOF
-    $BLOCKPULL && echo "virsh blockpull $VM_NAME vda --wait --verbose" >&2
-    echo "virsh autostart $VM_NAME" >&2
-    echo "virsh dumpxml $VM_NAME | sed '/<sysinfo/,/<\\/sysinfo>/d' | virsh define /dev/stdin" >&2
-    exit 0
 fi
 
 # --- Provision VM ---
@@ -156,6 +158,9 @@ cleanup() {
 }
 trap cleanup ERR
 
+# Read extra args into an array safely
+readarray -t EXTRA_ARGS < <(deploy_extra_args)
+
 virt-install \
     --connect="qemu:///system" \
     --name="$VM_NAME" \
@@ -167,7 +172,8 @@ virt-install \
     --graphics=none \
     --network bridge="$VM_NETWORK" \
     --sysinfo type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file="$IGNITION_FILE" \
-    --noautoconsole
+    --noautoconsole \
+    "${EXTRA_ARGS[@]}"
 
 trap - ERR
 
@@ -184,3 +190,6 @@ if $BLOCKPULL; then
     virsh blockpull "$VM_NAME" vda --wait --verbose
     echo "Blockpull complete." >&2
 fi
+
+# --- Type-specific finalization ---
+deploy_finalize "$VM_NAME"
