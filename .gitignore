@@ -1,4 +1,3 @@
 .env
 *.ign
 
-infrastructure/storage-nfs/nfs-test.yaml
