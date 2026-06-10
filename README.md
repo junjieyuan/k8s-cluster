@@ -20,10 +20,17 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │   ├── vm-deploy.sh                        # [host] Provision FCOS VMs via virt-install
 │   ├── k8s-node/
 │   │   ├── build.sh                        # [host] Compile Butane template -> Ignition config
+│   │   ├── deploy.sh                       # [host] Type-specific deploy (sourced by vm-deploy.sh)
 │   │   ├── node.bu.tmpl                    # [host] Butane template (user, hostname, kernel, packages)
 │   │   └── .env.example                    # [host] Configuration template
+│   ├── k8s-gpu-node/
+│   │   ├── build.sh                        # [host] Compile Butane template -> Ignition config
+│   │   ├── deploy.sh                       # [host] GPU-specific deploy (PCI passthrough, virtiofs)
+│   │   ├── gpu-worker.bu.tmpl              # [host] Butane template (user, hostname, kernel)
+│   │   └── .env.example                    # [host] Configuration template (GPU PCI, virtiofs)
 │   ├── storage-server/
 │   │   ├── build.sh                        # [host] Compile storage Butane template -> Ignition config
+│   │   ├── deploy.sh                       # [host] Type-specific deploy (sourced by vm-deploy.sh)
 │   │   ├── storage.bu.tmpl                 # [host] Butane template (NFS exports, packages)
 │   │   └── .env.example                    # [host] Configuration template
 │   └── kubeadm/
@@ -80,7 +87,15 @@ cp bootstrap/k8s-node/.env.example bootstrap/k8s-node/.env
 # Edit .env:
 #   K8S_PASSWORD_HASH=<run: openssl passwd -6>
 #   K8S_SSH_PUB_KEY=<your public key>
-#   Other vars (K8S_HOSTNAME, K8S_CRIO_VERSION, K8S_KUBERNETES_VERSION) have defaults
+#   Other vars (K8S_HOSTNAME, K8S_PREINSTALLED_PACKAGES) have defaults
+
+# For GPU workers (optional)
+cp bootstrap/k8s-gpu-node/.env.example bootstrap/k8s-gpu-node/.env
+# Edit .env:
+#   K8S_PASSWORD_HASH=<run: openssl passwd -6>
+#   K8S_SSH_PUB_KEY=<your public key>
+#   K8S_GPU_DEVICES="0000:01:00.0 0000:01:00.1"  # lspci -nn | grep -i nvidia
+#   K8S_VIRTIOFS_SOURCE="/var/home/junjie/.cache/huggingface/hub"
 
 # For storage server (optional)
 cp bootstrap/storage-server/.env.example bootstrap/storage-server/.env
@@ -91,34 +106,46 @@ cp bootstrap/storage-server/.env.example bootstrap/storage-server/.env
 
 #### 3. Build Ignition Config
 
-`--type` auto-builds during deployment, but you can also build manually:
+`vm-deploy.sh --type` auto-builds during deployment, but you can also build manually:
 
 ```bash
 # K8s node
 bash bootstrap/k8s-node/build.sh              # generates bootstrap/k8s-node/node.ign
 bash bootstrap/k8s-node/build.sh --validate   # validate only, no output
 
-# Storage server (optional)
-bash bootstrap/storage-server/build.sh         # generates bootstrap/storage-server/storage.ign
+# GPU worker
+bash bootstrap/k8s-gpu-node/build.sh          # generates bootstrap/k8s-gpu-node/gpu-worker.ign
+
+# Storage server
+bash bootstrap/storage-server/build.sh        # generates bootstrap/storage-server/storage.ign
 ```
 
 #### 4. Provision VMs
 
-Use `--type` for a one-step build + deploy, or `--ignition` for a pre-built config:
-
 ```bash
-# Control plane (auto-builds + deploys)
+# Control plane
 bash bootstrap/vm-deploy.sh --type k8s-node
 bash bootstrap/vm-deploy.sh --type k8s-node --cpus 4 --memory 8192
 
-# Storage server (auto-builds + deploys)
+# GPU worker (16 vCPUs / 32 GiB, with PCI passthrough + virtiofs)
+bash bootstrap/vm-deploy.sh --type k8s-gpu-node --name k8s-gpu-worker-001 --cpus 16 --memory 32768
+
+# Storage server
 bash bootstrap/vm-deploy.sh --type storage-server --name k8s-storage-001
 
 # Dry-run
 bash bootstrap/vm-deploy.sh --type k8s-node --dry-run
 ```
 
-The VM boots, applies Ignition config, installs packages via rpm-ostree, and reboots. Wait ~2-3 minutes for the reboot to complete.
+The VM boots, applies Ignition config (including rpm-ostree install of cri-o + kubernetes), and reboots. Wait ~2-3 minutes for the reboot to complete.
+
+For k8s-gpu-node type, the Ignition config follows [ublue's autorebase pattern](https://github.com/ublue-os/ucore#auto-rebase-install). Three reboots happen automatically:
+
+1. **Unsigned rebase**: FCOS → `ucore-minimal:stable-nvidia` (unsigned) → reboot
+2. **Signed rebase**: switch to signed image for verified updates → reboot
+3. **Install k8s**: layer cri-o + kubernetes on uCore → reboot
+
+No manual steps needed — after all reboots (~6-7 min), the VM is running signed uCore NVIDIA with k8s installed. The deploy script then stops the VM, attaches GPU PCI devices, virtiofs, sets CPU to host-passthrough and memory backing, then restarts.
 
 ### Inside the VM
 
@@ -151,7 +178,7 @@ bash kubeadm/init-control-plane.sh --configure-kubectl --install-cni
 > echo '<control-plane-ip> control-plane.k8s.junjie.pro' | sudo tee -a /etc/hosts
 > ```
 
-#### 6. Add Worker Nodes (Optional)
+#### 6. Add Worker Nodes
 
 **On the Host** — get join token, then provision the worker:
 
@@ -163,23 +190,11 @@ ssh core@<control-plane-ip> sudo kubeadm token create --print-join-command
 # Edit .env, set hostname, rebuild Ignition
 sed -i 's/^K8S_HOSTNAME=.*/K8S_HOSTNAME=k8s-worker-001/' bootstrap/k8s-node/.env
 
-# Provision worker VM (--type auto-builds + deploys)
+# Provision worker VM
 bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-worker-001 --cpus 2 --memory 4096
 ```
 
-> **NVIDIA GPU workers**: For nodes with GPUs, after the initial install reboots and before joining:
->
-> ```bash
-> # SSH in, switch to ublue OS image which includes NVIDIA drivers
-> sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/ublue-os/ucore-minimal:stable-nvidia
-> # Reboot into the new image, then join as described below
-> ```
->
-> Ublue enables firewalld and zram swap by default. These are handled automatically:
-> - `init-node.sh` disables zram swap (stop + mask `systemd-zram-setup@zram0.service`)
-> - `join-worker.sh` opens firewalld ports via `kube-worker` service
-
-**Inside the VM**, after (optional) GPU switch and reboot:
+**Inside the VM**, after reboot completes:
 
 ```bash
 bash kubeadm/init-node.sh
@@ -188,6 +203,8 @@ bash kubeadm/join-worker.sh \
     --hash sha256:<hash> \
     --endpoint <control-plane-ip>:6443
 ```
+
+> **GPU workers**: Same join procedure. `init-node.sh` handles ublue specifics (zram swap off, firewalld ports via `join-worker.sh`). The base image must be ucore before joining — rebase at first boot (see step 4).
 
 #### 7. Add Control Plane Nodes (Optional)
 
@@ -243,8 +260,7 @@ bash infrastructure/storage-nfs/install.sh
 
 | Option           | Default                    | Description            |
 |------------------|----------------------------|------------------------|
-| `--type`         | —                          | Node type: `k8s-node` or `storage-server` (auto-builds + deploys) |
-| `--ignition`     | —                          | Path to .ign file (skip build, deploy only) |
+| `--type`         | — (required)               | Node type: `k8s-node`, `k8s-gpu-node`, or `storage-server` |
 | `--name`         | `k8s-control-plane-001`    | Libvirt domain name    |
 | `--cpus`         | `2`                        | vCPUs                  |
 | `--memory`       | `4096`                     | Memory in MiB          |
@@ -310,21 +326,34 @@ bash infrastructure/storage-nfs/install.sh
 | `--cidr`    | `172.16.0.0/12`| Pod IPv4 CIDR           |
 | `--dry-run` | off           | Print command only      |
 
-### `bootstrap/k8s-node/.env` Variables
+### `.env` Variables
 
-| Variable                 | Description                                      |
-|--------------------------|--------------------------------------------------|
-| `K8S_PASSWORD_HASH`      | `openssl passwd -6` output                       |
-| `K8S_SSH_PUB_KEY`        | SSH public key for core user                     |
-| `K8S_HOSTNAME`           | OS hostname (default: `k8s-control-plane-001`)   |
-| `K8S_CRIO_VERSION`       | CRI-O rpm-ostree package (default: `cri-o1.35`)  |
-| `K8S_KUBERNETES_VERSION` | Kubernetes rpm-ostree package (default: `kubernetes1.35`) |
+#### `bootstrap/k8s-node/.env`
 
-### `bootstrap/storage-server/.env` Variables
+| Variable                     | Description                                               |
+|------------------------------|-----------------------------------------------------------|
+| `K8S_PASSWORD_HASH`          | `openssl passwd -6` output                                |
+| `K8S_SSH_PUB_KEY`            | SSH public key for core user                              |
+| `K8S_HOSTNAME`               | OS hostname (default: `k8s-control-plane-001`)            |
+| `K8S_PREINSTALLED_PACKAGES`  | rpm-ostree packages (default: `"cri-o1.35 kubernetes1.35"`) |
 
-| Variable              | Description                                      |
-|-----------------------|--------------------------------------------------|
-| `K8S_PASSWORD_HASH`   | `openssl passwd -6` output                       |
-| `K8S_SSH_PUB_KEY`     | SSH public key for core user                     |
-| `K8S_HOSTNAME`        | OS hostname (default: `k8s-storage-001`)         |
-| `PREINSTALLED_PACKAGES`| rpm-ostree packages (default: `nfs-utils`)       |
+#### `bootstrap/k8s-gpu-node/.env`
+
+| Variable                 | Description                                               |
+|--------------------------|-----------------------------------------------------------|
+| `K8S_PASSWORD_HASH`      | `openssl passwd -6` output                                |
+| `K8S_SSH_PUB_KEY`        | SSH public key for core user                              |
+| `K8S_HOSTNAME`           | OS hostname (default: `k8s-gpu-worker-001`)               |
+| `K8S_PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `"cri-o1.35 kubernetes1.35"`) |
+| `K8S_GPU_DEVICES`        | PCI addresses for passthrough (e.g. `"0000:01:00.0 0000:01:00.1"`) |
+| `K8S_VIRTIOFS_SOURCE`    | Host directory for virtiofs passthrough                   |
+| `K8S_VIRTIOFS_TARGET`    | Guest mount tag (default: `hf_hub`)                       |
+
+#### `bootstrap/storage-server/.env`
+
+| Variable                | Description                                      |
+|-------------------------|--------------------------------------------------|
+| `K8S_PASSWORD_HASH`     | `openssl passwd -6` output                       |
+| `K8S_SSH_PUB_KEY`       | SSH public key for core user                     |
+| `K8S_HOSTNAME`          | OS hostname (default: `k8s-storage-001`)         |
+| `PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `nfs-utils`)       |
