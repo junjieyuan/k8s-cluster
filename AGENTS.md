@@ -16,18 +16,23 @@ All scripts use `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to 
 ## Execution split: host vs VM
 
 ```
-[host]  upload-image.sh, butane/build.sh, core-install.sh
-[vm]    init/init-node.sh, init/init-control-plane.sh, init/cilium.sh,
-        init/join-worker.sh, init/join-control-plane.sh
+[host]  bootstrap/vm-image-upload.sh, bootstrap/k8s-node/build.sh,
+        bootstrap/storage-server/build.sh, bootstrap/vm-deploy.sh
+[vm]    bootstrap/kubeadm/init-node.sh, bootstrap/kubeadm/init-control-plane.sh,
+        bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
+[vm]    infrastructure/network-cilium/install.sh, infrastructure/storage-nfs/install.sh
 ```
 
-Host scripts provision VMs; VM scripts run inside the guest. Never confuse the two.
+Host scripts provision VMs; VM scripts run inside the guest. Infrastructure
+scripts deploy cluster-level services (CNI, storage drivers) via kubectl/helm.
+Never confuse the two.
 
 ## Privilege handling
 
 All privileged scripts auto-escalate via `exec sudo "$0" "$@"` at the top when `$EUID -ne 0`. The caller does not need to prefix with `sudo`. Scripts that never need root:
 
-- `butane/build.sh` — runs butane/envsubst as normal user
+- `bootstrap/k8s-node/build.sh` — runs butane/envsubst as normal user
+- `bootstrap/storage-server/build.sh` — runs butane/envsubst as normal user
 
 `cilium.sh` only escalates when installing the `cilium` CLI binary to `/usr/local/bin`.
 
@@ -35,11 +40,17 @@ The caller never needs to prefix with `sudo`. Any `sudo` in README examples refe
 
 ## Butane/Ignition flow
 
-1. Copy `butane/.env.example` → `butane/.env`, fill in `K8S_PASSWORD_HASH` and `K8S_SSH_PUB_KEY` (other vars have defaults)
-2. `bash butane/build.sh` compiles `node.bu.tmpl` → `node.ign` via envsubst + butane
-3. `core-install.sh` injects `node.ign` into the VM
+### K8s nodes
+1. Copy `bootstrap/k8s-node/.env.example` → `bootstrap/k8s-node/.env`, fill in `K8S_PASSWORD_HASH` and `K8S_SSH_PUB_KEY` (other vars have defaults)
+2. `bash bootstrap/k8s-node/build.sh` compiles `node.bu.tmpl` → `node.ign` via envsubst + butane
+3. `bootstrap/vm-deploy.sh` injects `node.ign` into the VM
 
-`build.sh` uses `set -a; source .env; set +a` to load all variables. `envsubst` substitutes `$K8S_PASSWORD_HASH $K8S_SSH_PUB_KEY $K8S_HOSTNAME $K8S_CRIO_VERSION $K8S_KUBERNETES_VERSION`.
+### Storage server
+1. Copy `bootstrap/storage-server/.env.example` → `bootstrap/storage-server/.env`, fill in `K8S_PASSWORD_HASH` and `K8S_SSH_PUB_KEY` (other vars have defaults)
+2. `bash bootstrap/storage-server/build.sh` compiles `storage.bu.tmpl` → `storage.ign` via envsubst + butane
+3. `bootstrap/vm-deploy.sh` injects `storage.ign` into the VM
+
+`build.sh` uses `set -a; source .env; set +a` to load all variables. `envsubst` substitutes the appropriate set of variables per template (`K8S_PASSWORD_HASH $K8S_SSH_PUB_KEY $K8S_HOSTNAME ...`).
 
 ## kubeadm configs are templates
 
@@ -69,8 +80,8 @@ The caller never needs to prefix with `sudo`. Any `sudo` in README examples refe
 
 ## Image provisioning order
 
-1. `upload-image.sh` → libvirt storage pool
-2. `butane/build.sh` → `node.ign`
-3. `core-install.sh` → VM
+1. `bootstrap/vm-image-upload.sh` → libvirt storage pool
+2. `bootstrap/k8s-node/build.sh` → `node.ign` (or `bootstrap/storage-server/build.sh` → `storage.ign`)
+3. `bootstrap/vm-deploy.sh` → VM
 
-After provisioning, `core-install.sh` removes fwcfg Ignition from the domain XML (security) and enables autostart.
+After provisioning, `vm-deploy.sh` removes fwcfg Ignition from the domain XML (security) and enables autostart.
