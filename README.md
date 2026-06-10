@@ -235,6 +235,7 @@ bash infrastructure/storage-nfs/install.sh
 - **DHCP IP**: VMs get dynamic IPs from the default network (bridge `virbr0`). Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
 - **Token expiry**: `kubeadm token create` tokens expire after 24 hours. Regenerate if needed.
 - **Hostname resolution**: If using a hostname for `--endpoint` (e.g. `control-plane.k8s.junjie.pro`), ensure it resolves on every node via DNS or `/etc/hosts`.
+- **NFSv4 + FCOS**: FCOS requires `fsid=0` on the NFS export to establish the NFSv4 pseudofilesystem root. Without it, NFSv4 clients silently fall back to NFSv3 because the server cannot traverse `/var` (separate bind-mounted filesystem on FCOS). With `fsid=0`, the export becomes the NFSv4 root — the CSI StorageClass must use `share: /` (not `/var/nfs-data`) since the mount path is relative to the pseudoroot. `subDir` subdirectories are created under the physical export path normally.
 
 ## Reference
 
