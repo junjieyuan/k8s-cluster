@@ -17,6 +17,9 @@ storage:
       contents:
         inline: |
           /var/nfs-data  192.168.122.0/24(rw,sync,no_root_squash,no_subtree_check)
+  directories:
+    - path: /var/nfs-data
+      mode: 0755
 systemd:
   units:
     # Install packages via rpm-ostree on first boot.
@@ -33,5 +36,22 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${PREINSTALLED_PACKAGES}
+        [Install]
+        WantedBy=multi-user.target
+    # Enable NFS server after rpm-ostree installs the packages.
+    # ConditionPathExists skips this unit on first boot (nfs-utils not yet layered);
+    # on subsequent boots the condition passes and the service is enabled.
+    - name: nfs-server-enable.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Enable NFS server after packages are installed
+        After=network-online.target rpm-ostree-install-packages.service
+        Wants=network-online.target
+        ConditionPathExists=/usr/sbin/rpc.nfsd
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/systemctl enable --now nfs-server
         [Install]
         WantedBy=multi-user.target

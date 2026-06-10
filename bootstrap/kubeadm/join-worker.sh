@@ -21,7 +21,7 @@ Required:
   --endpoint HOST   API server endpoint, e.g. control-plane.example.com:6443
 
 Options:
-  --config PATH     kubeadm join config template (default: init/kubeadm-join-worker.yaml)
+  --config PATH     kubeadm join config template (default: bootstrap/kubeadm/kubeadm-join-worker.yaml)
   --dry-run         Print the join command without executing
   --help            Show this help
 EOF

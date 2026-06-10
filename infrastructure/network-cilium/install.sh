@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: cilium.sh [OPTIONS]
+Usage: install.sh [OPTIONS]
 
 Install Cilium CNI on an initialized Kubernetes cluster.
 Auto-downloads the cilium CLI if not already installed.

@@ -91,6 +91,8 @@ cp bootstrap/storage-server/.env.example bootstrap/storage-server/.env
 
 #### 3. Build Ignition Config
 
+`--type` auto-builds during deployment, but you can also build manually:
+
 ```bash
 # K8s node
 bash bootstrap/k8s-node/build.sh              # generates bootstrap/k8s-node/node.ign
@@ -102,16 +104,18 @@ bash bootstrap/storage-server/build.sh         # generates bootstrap/storage-ser
 
 #### 4. Provision VMs
 
-```bash
-# Control plane
-bash bootstrap/vm-deploy.sh --ignition bootstrap/k8s-node/node.ign
-bash bootstrap/vm-deploy.sh --ignition bootstrap/k8s-node/node.ign --cpus 4 --memory 8192
+Use `--type` for a one-step build + deploy, or `--ignition` for a pre-built config:
 
-# Storage server (optional)
-bash bootstrap/vm-deploy.sh --ignition bootstrap/storage-server/storage.ign --name k8s-storage-001
+```bash
+# Control plane (auto-builds + deploys)
+bash bootstrap/vm-deploy.sh --type k8s-node
+bash bootstrap/vm-deploy.sh --type k8s-node --cpus 4 --memory 8192
+
+# Storage server (auto-builds + deploys)
+bash bootstrap/vm-deploy.sh --type storage-server --name k8s-storage-001
 
 # Dry-run
-bash bootstrap/vm-deploy.sh --ignition bootstrap/k8s-node/node.ign --dry-run
+bash bootstrap/vm-deploy.sh --type k8s-node --dry-run
 ```
 
 The VM boots, applies Ignition config, installs packages via rpm-ostree, and reboots. Wait ~2-3 minutes for the reboot to complete.
@@ -158,10 +162,9 @@ ssh core@<control-plane-ip> sudo kubeadm token create --print-join-command
 
 # Edit .env, set hostname, rebuild Ignition
 sed -i 's/^K8S_HOSTNAME=.*/K8S_HOSTNAME=k8s-worker-001/' bootstrap/k8s-node/.env
-bash bootstrap/k8s-node/build.sh
 
-# Provision worker VM (wait for first reboot)
-bash bootstrap/vm-deploy.sh --ignition bootstrap/k8s-node/node.ign --name k8s-worker-001 --cpus 2 --memory 4096
+# Provision worker VM (--type auto-builds + deploys)
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-worker-001 --cpus 2 --memory 4096
 ```
 
 > **NVIDIA GPU workers**: For nodes with GPUs, after the initial install reboots and before joining:
@@ -192,8 +195,7 @@ bash bootstrap/kubeadm/join-worker.sh \
 
 ```bash
 sed -i 's/^K8S_HOSTNAME=.*/K8S_HOSTNAME=k8s-control-plane-002/' bootstrap/k8s-node/.env
-bash bootstrap/k8s-node/build.sh
-bash bootstrap/vm-deploy.sh --ignition bootstrap/k8s-node/node.ign --name k8s-control-plane-002 --cpus 4 --memory 8192
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-002 --cpus 4 --memory 8192
 ```
 
 > **Note**: Get the certificate key from an existing control plane node:
@@ -240,6 +242,8 @@ bash infrastructure/storage-nfs/install.sh
 
 | Option           | Default                    | Description            |
 |------------------|----------------------------|------------------------|
+| `--type`         | —                          | Node type: `k8s-node` or `storage-server` (auto-builds + deploys) |
+| `--ignition`     | —                          | Path to .ign file (skip build, deploy only) |
 | `--name`         | `k8s-control-plane-001`    | Libvirt domain name    |
 | `--cpus`         | `2`                        | vCPUs                  |
 | `--memory`       | `4096`                     | Memory in MiB          |
@@ -247,7 +251,6 @@ bash infrastructure/storage-nfs/install.sh
 | `--image`        | auto-detect                | FCOS QCOW2 path        |
 | `--network`      | `virbr0`                   | Bridge name            |
 | `--os-variant`   | `fedora-coreos-stable`     | osinfo variant         |
-| `--ignition`     | required                   | Ignition file path     |
 | `--no-blockpull` | off                        | Skip backing file pull |
 | `--dry-run`      | off                        | Print command only     |
 

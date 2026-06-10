@@ -6,29 +6,36 @@ if [[ $EUID -ne 0 ]]; then
     exec sudo "$0" "$@"
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 usage() {
     cat <<'EOF'
-Usage: core-install.sh [OPTIONS]
+Usage: vm-deploy.sh [OPTIONS]
 
 Provision a Fedora CoreOS VM backed by a QCOW2 image, injecting an Ignition config.
 
+Either --type or --ignition is required:
+  --type TYPE       Node type (k8s-node or storage-server). Runs the corresponding
+                    build.sh to generate the Ignition config before deploying.
+  --ignition PATH   Path to .ign file (skip build, deploy only).
+
 Options:
-  --name NAME         VM name (default: k8s-control-plane-001)
-  --cpus N            Number of vCPUs (default: 2)
-  --memory MiB         Memory in MiB (default: 4096)
-  --disk-size GiB      Disk size in GiB (default: 64)
-  --image PATH        Path to FCOS QCOW2 backing image (required unless default exists)
-  --network BRIDGE    Network bridge name (default: virbr0)
-  --os-variant OS     osinfo variant (default: fedora-coreos-stable)
-  --ignition FILE     Path to Ignition file (default: butane/node.ign)
-  --no-blockpull      Skip blockpull after install (saves time/space)
-  --dry-run           Print the virt-install command without executing
-  --help              Show this help
+  --name NAME       VM name (default: k8s-control-plane-001)
+  --cpus N          Number of vCPUs (default: 2)
+  --memory MiB      Memory in MiB (default: 4096)
+  --disk-size GiB   Disk size in GiB (default: 64)
+  --image PATH      Path to FCOS QCOW2 backing image
+  --network BRIDGE  Network bridge name (default: virbr0)
+  --os-variant OS   osinfo variant (default: fedora-coreos-stable)
+  --no-blockpull    Skip blockpull after install
+  --dry-run         Print the virt-install command without executing
+  --help            Show this help
 EOF
     exit "${1:-0}"
 }
 
 # --- Defaults ---
+NODE_TYPE=""
 VM_NAME="k8s-control-plane-001"
 VM_CPUS="2"
 VM_MEMORY="4096"
@@ -36,14 +43,14 @@ VM_IMAGE=""
 VM_OS="fedora-coreos-stable"
 VM_DISK_SIZE="64"
 VM_NETWORK="virbr0"
+IGNITION_FILE=""
 DRY_RUN=false
 BLOCKPULL=true
-BUTANE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/butane" && pwd)"
-IGNITION_FILE="${BUTANE_DIR}/node.ign"
 
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --type)       NODE_TYPE="$2";     shift 2 ;;
         --name)       VM_NAME="$2";       shift 2 ;;
         --cpus)       VM_CPUS="$2";       shift 2 ;;
         --memory)     VM_MEMORY="$2";     shift 2 ;;
@@ -59,24 +66,56 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# --- Pre-flight helper ---
+fail() { echo "Error: $*" >&2; exit 1; }
+
+# --- Resolve ignition source ---
+if [[ -n "$NODE_TYPE" && -n "$IGNITION_FILE" ]]; then
+    fail "--type and --ignition are mutually exclusive"
+fi
+
+if [[ -n "$NODE_TYPE" ]]; then
+    case "$NODE_TYPE" in
+        k8s-node)
+            BUILD_DIR="${SCRIPT_DIR}/k8s-node"
+            IGNITION_FILE="${BUILD_DIR}/node.ign"
+            ;;
+        storage-server)
+            BUILD_DIR="${SCRIPT_DIR}/storage-server"
+            IGNITION_FILE="${BUILD_DIR}/storage.ign"
+            ;;
+        *)
+            fail "Unknown type: $NODE_TYPE (expected k8s-node or storage-server)"
+            ;;
+    esac
+
+    BUILD_SCRIPT="${BUILD_DIR}/build.sh"
+    [[ -f "$BUILD_SCRIPT" ]] || fail "Build script not found: $BUILD_SCRIPT"
+
+    if $DRY_RUN; then
+        echo "DRY-RUN: would run $BUILD_SCRIPT" >&2
+    else
+        echo "Building Ignition config for $NODE_TYPE..." >&2
+        bash "$BUILD_SCRIPT"
+    fi
+fi
+
+if [[ -z "$IGNITION_FILE" ]]; then
+    fail "Either --type or --ignition is required"
+fi
+
 # --- Default image path if not specified ---
 if [[ -z "$VM_IMAGE" ]]; then
-    # Pick the most recent FCOS qcow2 in the standard libvirt images dir
     VM_IMAGE=$(ls -t /var/lib/libvirt/images/fedora-coreos-*.qcow2 2>/dev/null | head -1 || true)
     if [[ -z "$VM_IMAGE" ]]; then
-        echo "Error: No FCOS image found in /var/lib/libvirt/images/ and --image not specified." >&2
-        echo "Download one from https://fedoraproject.org/coreos/download" >&2
-        echo "Or specify the path with --image." >&2
-        exit 1
+        fail "No FCOS image found in /var/lib/libvirt/images/ and --image not specified."
     fi
     echo "Using image: $VM_IMAGE" >&2
 fi
 
 # --- Pre-flight checks ---
-fail() { echo "Error: $*" >&2; exit 1; }
-
-[[ -f "$VM_IMAGE" ]]         || fail "FCOS image not found at $VM_IMAGE"
-[[ -f "$IGNITION_FILE" ]]    || fail "Ignition file not found at $IGNITION_FILE (run butane/build.sh first)"
+[[ -f "$VM_IMAGE" ]]      || fail "FCOS image not found at $VM_IMAGE"
+[[ -f "$IGNITION_FILE" ]] || fail "Ignition file not found at $IGNITION_FILE"
 command -v virt-install >/dev/null 2>&1 || fail "virt-install not found (install virt-install package)"
 command -v virsh >/dev/null 2>&1       || fail "virsh not found (install libvirt-client)"
 

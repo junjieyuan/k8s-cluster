@@ -22,7 +22,7 @@ Required:
   --certificate-key KEY  Certificate key (from kubeadm init phase upload-certs)
 
 Options:
-  --config PATH          kubeadm join config template (default: init/kubeadm-join-control-plane.yaml)
+  --config PATH          kubeadm join config template (default: bootstrap/kubeadm/kubeadm-join-control-plane.yaml)
   --dry-run              Print the join command without executing
   --help                 Show this help
 EOF

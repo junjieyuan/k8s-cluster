@@ -12,7 +12,7 @@ kind: ClusterConfiguration
 # Default: control-plane.k8s.junjie.pro:6443 (override with --endpoint).
 controlPlaneEndpoint: "${CONTROL_PLANE_ENDPOINT}"
 networking:
-  # Must match the CIDR passed to cilium.sh.
+  # Must match the CIDR passed to the Cilium install script.
   podSubnet: "172.16.0.0/12"
   serviceSubnet: "10.96.0.0/12"
 controllerManager:

@@ -7,7 +7,7 @@ This is a k8s cluster provisioning project — Bash scripts and YAML templates, 
 ## Tool constraints
 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script. Never introduce Python, Node, or other languages.
-- **No package managers needed** — no `npm`, `pip`, `cargo`, etc. Runtime deps (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by `cilium.sh` if missing.
+- **No package managers needed** — no `npm`, `pip`, `cargo`, etc. Runtime deps (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by `infrastructure/network-cilium/install.sh` if missing.
 
 ## Script invocation
 
@@ -34,7 +34,7 @@ All privileged scripts auto-escalate via `exec sudo "$0" "$@"` at the top when `
 - `bootstrap/k8s-node/build.sh` — runs butane/envsubst as normal user
 - `bootstrap/storage-server/build.sh` — runs butane/envsubst as normal user
 
-`cilium.sh` only escalates when installing the `cilium` CLI binary to `/usr/local/bin`.
+`infrastructure/network-cilium/install.sh` only escalates when installing the `cilium` CLI binary to `/usr/local/bin`.
 
 The caller never needs to prefix with `sudo`. Any `sudo` in README examples refers to manual commands (e.g. `tee /etc/hosts`), not project scripts.
 

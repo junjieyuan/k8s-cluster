@@ -33,8 +33,8 @@ storage:
 systemd:
   units:
     # Install CRI-O and Kubernetes via rpm-ostree on first boot.
-    # --reboot triggers a reboot after installation; RemainAfterExit=yes prevents
-    # systemd from restarting the service after reboot.
+    # --reboot triggers a reboot after installation; --idempotent ensures
+    # the service is a no-op on subsequent boots (packages already layered).
     - name: rpm-ostree-install-packages.service
       enabled: true
       contents: |

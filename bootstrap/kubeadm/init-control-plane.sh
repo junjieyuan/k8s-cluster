@@ -8,7 +8,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KUBEADM_CONFIG="${SCRIPT_DIR}/kubeadm-init.yaml"
-CILIUM_SCRIPT="${SCRIPT_DIR}/cilium.sh"
+CILIUM_SCRIPT="${SCRIPT_DIR}/infrastructure/network-cilium/install.sh"
 
 usage() {
     cat <<'EOF'
@@ -18,9 +18,9 @@ Bootstrap a Kubernetes control plane with kubeadm and optionally install Cilium 
 
 Options:
   --endpoint HOST:PORT  API server endpoint (default: control-plane.k8s.junjie.pro:6443)
-  --config PATH         kubeadm init config template (default: init/kubeadm-init.yaml)
+  --config PATH         kubeadm init config template (default: bootstrap/kubeadm/kubeadm-init.yaml)
   --configure-kubectl   Copy admin.conf to ~/.kube/config after init
-  --install-cni         Run cilium.sh after init
+  --install-cni         Run infrastructure/network-cilium/install.sh after init
   --cni-version VER    Cilium version (default: 1.19.4)
   --pod-cidr CIDR       Pod IPv4 CIDR (default: 172.16.0.0/12)
   --dry-run             Print commands without executing

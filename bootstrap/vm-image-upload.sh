@@ -8,7 +8,7 @@ fi
 
 usage() {
     cat <<'EOF'
-Usage: upload-image.sh [OPTIONS] IMAGE_FILE
+Usage: vm-image-upload.sh [OPTIONS] IMAGE_FILE
 
 Upload a disk image to the libvirt default storage pool.
 Validates the upload with SHA512 checksum comparison.
