@@ -1,0 +1,37 @@
+variant: fcos
+version: "1.7.0"
+passwd:
+  users:
+    - name: core
+      password_hash: ${K8S_PASSWORD_HASH}
+      ssh_authorized_keys:
+        - ${K8S_SSH_PUB_KEY}
+storage:
+  files:
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: ${K8S_HOSTNAME}
+    - path: /etc/exports.d/k8s.exports
+      mode: 0644
+      contents:
+        inline: |
+          /var/nfs-data  192.168.122.0/24(rw,sync,no_root_squash,no_subtree_check)
+systemd:
+  units:
+    # Install packages via rpm-ostree on first boot.
+    # --reboot triggers a reboot after installation; --idempotent ensures
+    # the service is a no-op on subsequent boots (packages already layered).
+    - name: rpm-ostree-install-packages.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Install required packages via rpm-ostree
+        After=network-online.target
+        Wants=network-online.target
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${PREINSTALLED_PACKAGES}
+        [Install]
+        WantedBy=multi-user.target
