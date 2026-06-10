@@ -8,7 +8,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KUBEADM_CONFIG="${SCRIPT_DIR}/kubeadm-init.yaml"
-CILIUM_SCRIPT="${SCRIPT_DIR}/infrastructure/network-cilium/install.sh"
+CILIUM_SCRIPT="${SCRIPT_DIR}/../infrastructure/network-cilium/install.sh"
 
 usage() {
     cat <<'EOF'

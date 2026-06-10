@@ -9,6 +9,11 @@ This is a k8s cluster provisioning project — Bash scripts and YAML templates, 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script. Never introduce Python, Node, or other languages.
 - **No package managers needed** — no `npm`, `pip`, `cargo`, etc. Runtime deps (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by `infrastructure/network-cilium/install.sh` if missing.
 
+## Code style
+
+- **Emoji** — avoid decorative emoji in scripts and templates. Use only when it genuinely aids readability of diagnostic output (e.g. `[OK]` / `[FAIL]` markers). No emoji in comments, usage texts, or echo statements that users don't need to see.
+- **Comments** — keep them concise and factual. Describe *why*, not *what* the code already says. Remove stale or misleading comments immediately. In YAML templates, prefer short end-of-line annotations over multi-line block comments.
+
 ## Script invocation
 
 All scripts use `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to locate their resources. They can be run from any directory — `cd` is never required.

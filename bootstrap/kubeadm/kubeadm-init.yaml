@@ -8,12 +8,9 @@ nodeRegistration:
 ---
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
-# This file is a template: ${CONTROL_PLANE_ENDPOINT} is substituted at runtime by init-control-plane.sh.
-# Default: control-plane.k8s.junjie.pro:6443 (override with --endpoint).
-controlPlaneEndpoint: "${CONTROL_PLANE_ENDPOINT}"
+controlPlaneEndpoint: "${CONTROL_PLANE_ENDPOINT}"  # substituted at runtime; default: control-plane.k8s.junjie.pro:6443
 networking:
-  # Must match the CIDR passed to the Cilium install script.
-  podSubnet: "172.16.0.0/12"
+  podSubnet: "172.16.0.0/12"      # must match the Cilium install --cidr value
   serviceSubnet: "10.96.0.0/12"
 controllerManager:
   extraArgs:

@@ -129,7 +129,7 @@ Copy the `bootstrap/kubeadm/` directory to the VM, then SSH in.
 sudo virsh net-dhcp-leases default
 
 # Copy kubeadm scripts to the VM
-scp -r bootstrap/kubeadm/ core@<vm-ip>:~/
+scp -r bootstrap/kubeadm core@<vm-ip>:~/
 
 # SSH in
 ssh core@<vm-ip>
@@ -140,10 +140,10 @@ ssh core@<vm-ip>
 **Inside the VM**, after the first reboot completes (~2-3 min):
 
 ```bash
-bash bootstrap/kubeadm/init-node.sh
-bash bootstrap/kubeadm/init-control-plane.sh --configure-kubectl --install-cni
+bash kubeadm/init-node.sh
+bash kubeadm/init-control-plane.sh --configure-kubectl --install-cni
 # Or with a custom endpoint:
-# bash bootstrap/kubeadm/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
+# bash kubeadm/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
 ```
 
 > **Note**: Use the VM's IP as the endpoint, and update DNS/hosts:
@@ -182,8 +182,8 @@ bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-worker-001 --cpus 2 --mem
 **Inside the VM**, after (optional) GPU switch and reboot:
 
 ```bash
-bash bootstrap/kubeadm/init-node.sh
-bash bootstrap/kubeadm/join-worker.sh \
+bash kubeadm/init-node.sh
+bash kubeadm/join-worker.sh \
     --token <token> \
     --hash sha256:<hash> \
     --endpoint <control-plane-ip>:6443
@@ -206,8 +206,8 @@ bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-002 --cpus 
 **Inside the VM**, after reboot completes:
 
 ```bash
-bash bootstrap/kubeadm/init-node.sh
-bash bootstrap/kubeadm/join-control-plane.sh \
+bash kubeadm/init-node.sh
+bash kubeadm/join-control-plane.sh \
     --token <token> \
     --hash sha256:<hash> \
     --endpoint <control-plane-ip>:6443 \
@@ -219,7 +219,7 @@ bash bootstrap/kubeadm/join-control-plane.sh \
 Copy the `infrastructure/` directory to a control plane node:
 
 ```bash
-scp -r infrastructure/ core@<control-plane-ip>:~/
+scp -r infrastructure core@<control-plane-ip>:~/
 ssh core@<control-plane-ip>
 ```
 

@@ -1,27 +1,21 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: nfs-csi                       # 全局唯一的存储类名称，业务 PVC 申请时填这个
+  name: nfs-csi
   annotations:
-    # 建议：如果集群里没有其他分布式存储，把此 NFS 设为默认存储类
-    # 这样用户写 PVC 时不指定 storageClassName 也能自动用它
-    storageclass.kubernetes.io/is-default-class: "true"
-provisioner: nfs.csi.k8s.io           # 指定使用的驱动名称，必须与 values.yaml 中保持一致
-# 建议：开启卷大小动态扩容（NFS 驱动天然支持）
-# 开启后，用户修改 PVC 的 storage: 20Gi 为 50Gi，无须重启 Pod 即可生效
-allowVolumeExpansion: true 
+    storageclass.kubernetes.io/is-default-class: "true" # set as default when no other SC exists
+provisioner: nfs.csi.k8s.io
+allowVolumeExpansion: true
 parameters:
   server: storage-001.k8s.junjie.pro
   share: /var/nfs-data
-  # 可选：定义底层子目录的命名格式（命名空间/PVC名称），方便在 NFS 服务器上直观排查数据
-  subPathPattern: "${pvc.metadata.namespace}/${pvc.metadata.name}"
-reclaimPolicy: Retain                 # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
+  subPathPattern: "${pvc.metadata.namespace}/${pvc.metadata.name}" # organizes PVs by namespace/pvc
+reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
 volumeBindingMode: Immediate
-mountOptions:                         # 挂载性能与稳定性优化参数
+mountOptions:
   - nfsvers=4.2
-  - hard                              # 强挂载模式，防止网络短暂波动导致 I/O 报错
-  - rsize=524288                      # 优化读写块大小
-  - wsize=524288
-  # 建议：增加 timeo (超时等待) 和 retrans (重试次数) 优化网络抖动
+  - hard                            # hard mount prevents I/O errors on transient network blips
+  - rsize=524288
+  - wsize=524288                    # 512K r/w block size for throughput
   - timeo=600
-  - retrans=2
+  - retrans=2                       # 600 dS timeout, 2 retransmissions for network resilience
