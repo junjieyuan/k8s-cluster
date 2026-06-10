@@ -9,7 +9,7 @@ allowVolumeExpansion: true
 parameters:
   server: storage-001.k8s.junjie.pro
   share: /var/nfs-data
-  subPathPattern: "${pvc.metadata.namespace}/${pvc.metadata.name}" # organizes PVs by namespace/pvc
+  subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}"    # organizes PVs by namespace/pvc
 reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
 volumeBindingMode: Immediate
 mountOptions:
