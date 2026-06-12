@@ -7,7 +7,7 @@ metadata:
 provisioner: nfs.csi.k8s.io
 allowVolumeExpansion: true
 parameters:
-  server: storage-001.k8s.junjie.pro
+  server: ${NFS_SERVER}
   share: /                          # NFSv4 root (fsid=0 maps to /var/nfs-data)
   subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}"    # organizes PVs by namespace/pvc
 reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
