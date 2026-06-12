@@ -42,6 +42,16 @@ fi
 
 echo "Deploying external-dns ${EXTERNAL_DNS_VERSION}..."
 
+if [[ "$DRY_RUN" == true ]]; then
+    echo "[dry-run] would create namespace external-dns"
+    echo "[dry-run] would apply ServiceAccount, ClusterRole, ClusterRoleBinding"
+    echo "[dry-run] would create Secret cloudflare-api-token"
+    echo "[dry-run] would deploy external-dns with domain-filter=${DOMAIN_FILTER}"
+    echo ""
+    echo "external-dns dry-run complete."
+    exit 0
+fi
+
 echo "-> Creating namespace..."
 kubectl apply -f "${SCRIPT_DIR}/namespace.yaml"
 

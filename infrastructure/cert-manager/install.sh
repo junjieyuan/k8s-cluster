@@ -53,6 +53,15 @@ fi
 
 echo "Installing cert-manager ${CERT_MANAGER_VERSION}..."
 
+if [[ "$DRY_RUN" == true ]]; then
+    echo "[dry-run] would add jetstack Helm repo and install cert-manager"
+    echo "[dry-run] would create Secret cloudflare-api-token"
+    echo "[dry-run] would apply ClusterIssuer ${ISSUER_FILE}"
+    echo ""
+    echo "cert-manager dry-run complete."
+    exit 0
+fi
+
 if ! helm repo list -o yaml 2>/dev/null | grep -q "https://charts.jetstack.io"; then
     echo "-> Adding jetstack Helm repo..."
     helm repo add jetstack "${CHART_REPO}"
