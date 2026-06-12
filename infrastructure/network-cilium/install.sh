@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 usage() {
     cat <<'EOF'
 Usage: install.sh [OPTIONS]
@@ -18,8 +20,6 @@ Options:
 EOF
     exit "${1:-0}"
 }
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 VERSION="1.19.4"
 CIDR="172.16.0.0/12"
@@ -125,7 +125,10 @@ kubectl rollout status deploy/cilium-operator -n kube-system --timeout=120s
 # Apply LB-IPAM pool + L2 announcements for external access
 echo "Configuring LB-IPAM pool (CIDR: ${LB_CIDR})..." >&2
 export LB_CIDR
-envsubst '$LB_CIDR' < "${SCRIPT_DIR}/loadbalancer-ippool.yaml" | kubectl apply -f -
+POOL_YAML="$(mktemp)"
+envsubst '$LB_CIDR' < "${SCRIPT_DIR}/loadbalancer-ippool.yaml" > "$POOL_YAML"
+kubectl apply -f "$POOL_YAML"
+rm -f "$POOL_YAML"
 
 echo "Enabling L2 announcements for external LB access..." >&2
 kubectl patch configmap cilium-config -n kube-system --type=json -p='[
