@@ -7,10 +7,12 @@ Usage: install.sh [OPTIONS]
 
 Install Cilium CNI on an initialized Kubernetes cluster.
 Auto-downloads the cilium CLI if not already installed.
+Enables Gateway API by default.
 
 Options:
   --version VERSION   Cilium version (default: 1.19.4)
   --cidr CIDR         Pod IPv4 CIDR (default: 172.16.0.0/12)
+  --no-gateway-api    Disable Gateway API
   --dry-run           Print commands without executing
   --help              Show this help
 EOF
@@ -19,15 +21,17 @@ EOF
 
 VERSION="1.19.4"
 CIDR="172.16.0.0/12"
+GATEWAY_API=true
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --version) VERSION="$2"; shift 2 ;;
-        --cidr)    CIDR="$2";    shift 2 ;;
-        --dry-run) DRY_RUN=true; shift ;;
-        --help)    usage 0 ;;
-        *)         echo "Unknown option: $1" >&2; usage 1 ;;
+        --version)        VERSION="$2";        shift 2 ;;
+        --cidr)           CIDR="$2";           shift 2 ;;
+        --no-gateway-api) GATEWAY_API=false;   shift ;;
+        --dry-run)        DRY_RUN=true;        shift ;;
+        --help)           usage 0 ;;
+        *)                echo "Unknown option: $1" >&2; usage 1 ;;
     esac
 done
 
@@ -72,11 +76,15 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
     exit 1
 fi
 
+CLI_EXTRA=""
+$GATEWAY_API && CLI_EXTRA="--set gatewayAPI.enabled=true"
+
 if $DRY_RUN; then
-    echo "DRY-RUN: cilium install --version $VERSION --set ipam.operator.clusterPoolIPv4PodCIDRList='{$CIDR}'"
+    echo "DRY-RUN: cilium install --version $VERSION --set ipam.operator.clusterPoolIPv4PodCIDRList='{$CIDR}'${CLI_EXTRA:+ $CLI_EXTRA}"
     exit 0
 fi
 
-echo "Installing Cilium $VERSION with pod CIDR $CIDR..." >&2
-cilium install --version "$VERSION" --set "ipam.operator.clusterPoolIPv4PodCIDRList={$CIDR}"
+echo "Installing Cilium $VERSION with pod CIDR $CIDR (Gateway API: $GATEWAY_API)..." >&2
+# shellcheck disable=SC2086
+cilium install --version "$VERSION" --set "ipam.operator.clusterPoolIPv4PodCIDRList={$CIDR}" $CLI_EXTRA
 echo "Cilium installed." >&2
