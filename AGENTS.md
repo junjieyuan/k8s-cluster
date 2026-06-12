@@ -10,6 +10,22 @@ Application workloads running on the cluster are managed in the **`k8s-apps`** r
 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script. Never introduce Python, Node, or other languages.
 - **No package managers needed** — no `npm`, `pip`, `cargo`, etc. Runtime deps (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by `infrastructure/network-cilium/install.sh` if missing.
+- **Helm** is used for cluster-level operators where `values.yaml` provides clear advantage (e.g. CSI drivers). Infrastructure components like Cilium use `cilium` CLI + `helm upgrade`.
+
+## Component versions
+
+- **Always target latest stable** — pin explicit versions, check upstream before deployment or upgrade.
+- **Gateway API CRDs** — install from `https://github.com/kubernetes-sigs/gateway-api/releases/download/<version>/standard-install.yaml`. Version must match what Cilium supports. Current: `v1.5.1`. Do not copy CRD YAML into the repo — always reference upstream URL.
+- **Cilium** — use `cilium upgrade --version <x.y.z>` with explicit version. The CLI's built-in default may not match the latest stable. Current: `1.19.4`.
+- **Kubernetes** — `kubeadm` pins versions via `.env` or CLI flags (`--kubernetes-version`). Do not use `stable` or `latest` markers.
+- **CRI-O** — version matches Kubernetes minor (e.g. k8s 1.35 → CRI-O 1.35). Pinned in `.env`.
+
+## Infrastructure best practices
+
+- **Gateway API over Ingress** — expose services via `Gateway` + `HTTPRoute` (`gateway.networking.k8s.io/v1`). Do not use `networking.k8s.io/v1` Ingress or Cilium Ingress CRDs.
+- **LB-IPAM** — always create a `CiliumLoadBalancerIPPool` for bare-metal environments. No manual external IP assignment.
+- **L2 announcements** — enable in bare-metal environments for external LB access. Requires RBAC patch on `clusterrole cilium` for `leases` resource.
+- **kube-proxy replacement** — mandatory for Gateway API. Cilium handles service routing via eBPF.
 
 ## Code style
 
