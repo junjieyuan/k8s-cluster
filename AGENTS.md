@@ -2,9 +2,17 @@
 
 ## Project nature
 
-This is a k8s cluster provisioning project — Bash scripts and YAML templates, not a software application. There are no build commands, tests, linters, or type checkers.
+This repo is responsible for two things:
 
-Application workloads running on the cluster are managed in the **`k8s-apps`** repo (`~/Projects/k8s-apps`). Do not place application manifests here.
+1. **Cluster provisioning** — VM creation, kubeadm init/join, OS config
+   (see `bootstrap/`).
+2. **Cluster-level infrastructure** — services that the cluster itself depends
+   on to function: CNI (Cilium), CSI (NFS), GPU operator, cert-manager,
+   external-dns. These live under `infrastructure/`.
+
+**This repo does NOT manage application workloads.** User-facing services
+(llama-server, web apps, etc.) belong in the **`k8s-apps`** repo
+(`~/Projects/k8s-apps`). Do not place application manifests here.
 
 **The repo must be in full sync with the cluster** — every cluster-level
 resource (CNI, CSI, operators, system components) must be reflected in the
@@ -173,6 +181,21 @@ cilium version
 # Always specify --version to avoid accidental downgrade
 cilium upgrade --version 1.19.4 --set gatewayAPI.enabled=true --set kubeProxyReplacement=true
 ```
+
+## Debugging deployments
+
+- **After deploying any new component, immediately check logs** for E/F-level
+  errors: `kubectl logs -n <namespace> deployment/<name>`. CrashLoop/BackOff
+  must be investigated before moving on.
+- **Always use the install script to deploy** — never `kubectl apply -f` directly
+  on YAML files that contain `${VAR}` placeholders. The scripts handle
+  `envsubst` substitution via temporary files. Direct apply will pass literals
+  like `${API_SERVER_ADVERTISE_ADDRESS}` to the component, causing silent
+  misconfiguration.
+- **Verify RBAC against upstream docs** — controllers like external-dns often
+  require `get/list/watch` on `namespaces` in addition to their primary
+  resources. Missing permissions cause crash loops with `forbidden` errors.
+  Check the component's official RBAC manifest, don't guess.
 
 ## Commit conventions
 
