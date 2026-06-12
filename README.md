@@ -44,9 +44,12 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 └── infrastructure/
     ├── network-cilium/
     │   └── install.sh                      # [vm]  Install Cilium CNI
-    └── storage-nfs/
-        ├── install.sh                      # [vm]  Deploy csi-driver-nfs via Helm
-        └── storage-class.yaml              # [vm]  NFS StorageClass definition
+    ├── storage-nfs/
+    │   ├── install.sh                      # [vm]  Deploy csi-driver-nfs via Helm
+    │   └── storage-class.yaml              # [vm]  NFS StorageClass definition
+    └── gpu-operator/
+        ├── install.sh                      # [vm]  Deploy NVIDIA GPU Operator via Helm
+        └── values.yaml                     # [vm]  Helm values (host driver reuse, CDI)
 ```
 
 ### Network CIDRs
@@ -247,6 +250,18 @@ ssh core@<control-plane-ip>
 bash infrastructure/storage-nfs/install.sh
 ```
 
+#### GPU (NVIDIA Operator)
+
+Requires GPU worker nodes already joined to the cluster. Deploys Node Feature Discovery (NFD), container toolkit, and device plugin — only on nodes with NVIDIA GPUs.
+
+```bash
+# Deploy GPU operator with host driver reuse + CDI
+bash infrastructure/gpu-operator/install.sh
+
+# Verify (only GPU nodes show nvidia.com/gpu labels)
+kubectl get nodes --show-labels | grep nvidia.com/gpu
+```
+
 ## Important Notes
 
 - **DHCP IP**: VMs get dynamic IPs from the default network (bridge `virbr0`). Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
@@ -325,6 +340,13 @@ bash infrastructure/storage-nfs/install.sh
 | `--version` | `1.19.4`      | Cilium version          |
 | `--cidr`    | `172.16.0.0/12`| Pod IPv4 CIDR           |
 | `--dry-run` | off           | Print command only      |
+
+### `infrastructure/gpu-operator/install.sh` Options
+
+| Option      | Default       | Description                  |
+|-------------|---------------|------------------------------|
+| `--version` | `""` (latest) | GPU Operator Helm chart ver  |
+| `--dry-run` | off           | Print command only           |
 
 ### `.env` Variables
 
