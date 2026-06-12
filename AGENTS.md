@@ -6,6 +6,12 @@ This is a k8s cluster provisioning project — Bash scripts and YAML templates, 
 
 Application workloads running on the cluster are managed in the **`k8s-apps`** repo (`~/Projects/k8s-apps`). Do not place application manifests here.
 
+**The repo must be in full sync with the cluster** — every cluster-level
+resource (CNI, CSI, operators, system components) must be reflected in the
+code here. No manual changes on the cluster without corresponding updates
+to scripts, configs, or `.env` variables. All deploy scripts must be
+idempotent — re-running them should result in no-op.
+
 ## Tool constraints
 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script. Never introduce Python, Node, or other languages.
