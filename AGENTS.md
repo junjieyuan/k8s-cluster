@@ -79,6 +79,11 @@ The caller never needs to prefix with `sudo`. Any `sudo` in README examples refe
 
 `.env` and `*.ign` are gitignored. `.env.example` uses placeholder values only. Real credentials were never committed. Never add real secrets to templates or example files.
 
+**Absolute prohibition:** never commit any secret, key, password, token,
+certificate, or credential to this repository. This includes but is not
+limited to SSH private keys, API keys, kubeconfig files, password hashes
+(except in `.env.example` placeholders), and TLS certificates.
+
 ## Commit conventions
 
 - Atomic commits with conventional prefixes: `feat:`, `fix:`, `refactor:`, `docs:`
