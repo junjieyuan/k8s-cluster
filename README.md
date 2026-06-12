@@ -43,7 +43,8 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │       └── kubeadm-join-control-plane.yaml # [vm]  kubeadm JoinConfiguration template (control plane)
 └── infrastructure/
     ├── network-cilium/
-    │   └── install.sh                      # [vm]  Install Cilium CNI
+    │   ├── install.sh                      # [vm]  Install Cilium CNI (Gateway API + kube-proxy replacement)
+    │   └── loadbalancer-ippool.yaml         # [vm]  LB-IPAM pool template for Gateway API
     ├── storage-nfs/
     │   ├── install.sh                      # [vm]  Deploy csi-driver-nfs via Helm
     │   └── storage-class.yaml              # [vm]  NFS StorageClass definition

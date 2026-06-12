@@ -87,6 +87,64 @@ certificate, or credential to this repository. This includes but is not
 limited to SSH private keys, API keys, kubeconfig files, password hashes
 (except in `.env.example` placeholders), and TLS certificates.
 
+## Cilium Gateway API — known issues
+
+Cilium Gateway API requires several manual steps beyond `cilium upgrade --set gatewayAPI.enabled=true`. These are handled by the install script for fresh installs, but must be done manually when enabling Gateway API on an existing cluster.
+
+### Prerequisites
+
+- `kubeProxyReplacement=true` is **mandatory** for Gateway API. Without it the operator logs `Invoke failed: failed to create gateway controller` and crashes.
+- Gateway API CRDs **must** be installed before the Cilium upgrade:
+  ```bash
+  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+  ```
+- **TLSRoute `v1alpha2` patch**: v1.5.1 CRD sets `v1alpha2: served=false`, but Cilium 1.19.x operator requires it. After installing CRDs:
+  ```bash
+  kubectl patch crd tlsroutes.gateway.networking.k8s.io --type=json \
+    -p='[{"op": "replace", "path": "/spec/versions/1/served", "value": true}]'
+  ```
+- **Agent RBAC**: `cilium upgrade` does not add Gateway API permissions to the agent ClusterRole. Must patch:
+  ```bash
+  kubectl patch clusterrole cilium --type=json -p='[
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gatewayclasses","gateways","httproutes","grpcroutes","tlsroutes","referencegrants"], "verbs": ["get","list","watch"]}},
+    {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gateways/status","httproutes/status","grpcroutes/status","tlsroutes/status","gatewayclasses/status"], "verbs": ["update"]}}
+  ]'
+  ```
+  This patch will cause a conflict on the next `cilium upgrade`. Delete the ClusterRole before upgrading:
+  ```bash
+  kubectl delete clusterrole cilium
+  ```
+  The upgrade will recreate it with the correct values.
+
+### LB-IPAM
+
+Gateway API requires a LoadBalancer IP for each Gateway. In bare-metal/libvirt
+environments, create a `CiliumLoadBalancerIPPool`:
+```bash
+kubectl apply -f - <<EOF
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: default
+spec:
+  blocks:
+    - cidr: 192.168.122.0/24
+EOF
+```
+Note: `start`/`stop` fields on the pool block are **ignored** by Cilium 1.19.4.
+
+### cilium CLI version caveat
+
+`cilium upgrade` without `--version` uses the CLI's **built-in default**, not the
+currently running version or latest stable. Check with `cilium version` first.
+
+```bash
+# Shows: cilium image (default): v1.19.3, cilium image (stable): v1.19.4
+cilium version
+# Always specify --version to avoid accidental downgrade
+cilium upgrade --version 1.19.4 --set gatewayAPI.enabled=true --set kubeProxyReplacement=true
+```
+
 ## Commit conventions
 
 - Atomic commits with conventional prefixes: `feat:`, `fix:`, `refactor:`, `docs:`
