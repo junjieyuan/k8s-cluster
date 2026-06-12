@@ -97,7 +97,6 @@ if $DRY_RUN; then
     echo ""
     echo "DRY-RUN: install Gateway API CRDs v1.5.1"
     echo "DRY-RUN: patch TLSRoute CRD for v1alpha2 compatibility"
-    echo "DRY-RUN: patch cilium ClusterRole for Gateway API RBAC"
     echo "DRY-RUN: apply LB-IPAM pool (CIDR: ${LB_CIDR})"
     exit 0
 fi
@@ -121,18 +120,6 @@ kubectl patch crd tlsroutes.gateway.networking.k8s.io --type=json \
 # Wait for operator to be ready
 echo "Waiting for Cilium operator..." >&2
 kubectl rollout status deploy/cilium-operator -n kube-system --timeout=120s
-
-# Patch agent ClusterRole — cilium upgrade does not add Gateway API RBAC to agent
-echo "Adding Gateway API RBAC to Cilium agent..." >&2
-kubectl patch clusterrole cilium --type=json -p='[
-  {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gatewayclasses","gateways","httproutes","grpcroutes","tlsroutes","referencegrants"], "verbs": ["get","list","watch"]}},
-  {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gateways/status","httproutes/status","grpcroutes/status","tlsroutes/status","gatewayclasses/status"], "verbs": ["update"]}}
-]'
-
-# Restart Cilium to pick up RBAC changes
-echo "Restarting Cilium agents..." >&2
-kubectl rollout restart ds/cilium -n kube-system
-kubectl rollout status ds/cilium -n kube-system --timeout=120s
 
 # Apply LB-IPAM pool
 echo "Configuring LB-IPAM pool (CIDR: ${LB_CIDR})..." >&2

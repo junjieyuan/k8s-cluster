@@ -103,18 +103,6 @@ Cilium Gateway API requires several manual steps beyond `cilium upgrade --set ga
   kubectl patch crd tlsroutes.gateway.networking.k8s.io --type=json \
     -p='[{"op": "replace", "path": "/spec/versions/1/served", "value": true}]'
   ```
-- **Agent RBAC**: `cilium upgrade` does not add Gateway API permissions to the agent ClusterRole. Must patch:
-  ```bash
-  kubectl patch clusterrole cilium --type=json -p='[
-    {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gatewayclasses","gateways","httproutes","grpcroutes","tlsroutes","referencegrants"], "verbs": ["get","list","watch"]}},
-    {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gateways/status","httproutes/status","grpcroutes/status","tlsroutes/status","gatewayclasses/status"], "verbs": ["update"]}}
-  ]'
-  ```
-  This patch will cause a conflict on the next `cilium upgrade`. Delete the ClusterRole before upgrading:
-  ```bash
-  kubectl delete clusterrole cilium
-  ```
-  The upgrade will recreate it with the correct values.
 
 ### LB-IPAM
 
