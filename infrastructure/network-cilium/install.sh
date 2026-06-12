@@ -98,6 +98,7 @@ if $DRY_RUN; then
     echo "DRY-RUN: install Gateway API CRDs v1.5.1"
     echo "DRY-RUN: patch TLSRoute CRD for v1alpha2 compatibility"
     echo "DRY-RUN: apply LB-IPAM pool (CIDR: ${LB_CIDR})"
+    echo "DRY-RUN: enable L2 announcements + leases RBAC + L2AnnouncementPolicy"
     exit 0
 fi
 
@@ -121,8 +122,24 @@ kubectl patch crd tlsroutes.gateway.networking.k8s.io --type=json \
 echo "Waiting for Cilium operator..." >&2
 kubectl rollout status deploy/cilium-operator -n kube-system --timeout=120s
 
-# Apply LB-IPAM pool
+# Apply LB-IPAM pool + L2 announcements for external access
 echo "Configuring LB-IPAM pool (CIDR: ${LB_CIDR})..." >&2
 export LB_CIDR
 envsubst '$LB_CIDR' < "${SCRIPT_DIR}/loadbalancer-ippool.yaml" | kubectl apply -f -
-echo "LB-IPAM pool configured." >&2
+
+echo "Enabling L2 announcements for external LB access..." >&2
+kubectl patch configmap cilium-config -n kube-system --type=json -p='[
+  {"op": "add", "path": "/data/enable-l2-announcements", "value": "true"}
+]'
+
+# L2 announcements need leases RBAC (cilium upgrade does not add it)
+echo "Adding leases RBAC for L2 announcements..." >&2
+kubectl patch clusterrole cilium --type=json -p='[
+  {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["coordination.k8s.io"], "resources": ["leases"], "verbs": ["get","list","watch","create","update","delete"]}}
+]' 2>/dev/null || true
+
+kubectl apply -f "${SCRIPT_DIR}/l2-announcement-policy.yaml"
+
+kubectl rollout restart ds/cilium -n kube-system
+kubectl rollout status ds/cilium -n kube-system --timeout=120s
+echo "LB-IPAM and L2 announcements configured." >&2

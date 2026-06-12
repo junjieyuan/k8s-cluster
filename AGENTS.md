@@ -121,6 +121,25 @@ EOF
 ```
 Note: `start`/`stop` fields on the pool block are **ignored** by Cilium 1.19.4.
 
+#### L2 announcements for external LB access
+
+In bare-metal environments without BGP, L2 announcements are needed for
+external hosts to reach LoadBalancer IPs. This requires:
+
+1. Enable in Cilium config:
+   ```bash
+   kubectl patch configmap cilium-config -n kube-system --type=json \
+     -p='[{"op": "add", "path": "/data/enable-l2-announcements", "value": "true"}]'
+   ```
+2. Add leases RBAC (`cilium upgrade` does not add it):
+   ```bash
+   kubectl patch clusterrole cilium --type=json -p='[
+     {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["coordination.k8s.io"], "resources": ["leases"], "verbs": ["get","list","watch","create","update","delete"]}}
+   ]'
+   ```
+3. Create `CiliumL2AnnouncementPolicy` with the node interfaces (e.g. `^enp`).
+4. Restart Cilium agents.
+
 ### cilium CLI version caveat
 
 `cilium upgrade` without `--version` uses the CLI's **built-in default**, not the

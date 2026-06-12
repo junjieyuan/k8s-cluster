@@ -44,7 +44,8 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 └── infrastructure/
     ├── network-cilium/
     │   ├── install.sh                      # [vm]  Install Cilium CNI (Gateway API + kube-proxy replacement)
-    │   └── loadbalancer-ippool.yaml         # [vm]  LB-IPAM pool template for Gateway API
+    │   ├── loadbalancer-ippool.yaml         # [vm]  LB-IPAM pool template for Gateway API
+    │   └── l2-announcement-policy.yaml      # [vm]  L2 ARP responder for external LB access
     ├── storage-nfs/
     │   ├── install.sh                      # [vm]  Deploy csi-driver-nfs via Helm
     │   └── storage-class.yaml              # [vm]  NFS StorageClass definition
