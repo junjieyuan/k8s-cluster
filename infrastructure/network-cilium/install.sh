@@ -95,7 +95,10 @@ if $DRY_RUN; then
     echo "  --set kubeProxyReplacement=true \\"
     echo "  --set gatewayAPI.enabled=true"
     echo ""
-    echo "DRY-RUN: kubectl apply LB-IPAM pool with CIDR ${LB_CIDR}"
+    echo "DRY-RUN: install Gateway API CRDs v1.5.1"
+    echo "DRY-RUN: patch TLSRoute CRD for v1alpha2 compatibility"
+    echo "DRY-RUN: patch cilium ClusterRole for Gateway API RBAC"
+    echo "DRY-RUN: apply LB-IPAM pool (CIDR: ${LB_CIDR})"
     exit 0
 fi
 
@@ -105,6 +108,31 @@ cilium install --version "$VERSION" \
     --set kubeProxyReplacement=true \
     --set gatewayAPI.enabled=true
 echo "Cilium installed." >&2
+
+# Install Gateway API CRDs (Cilium 1.19 requires v1.5.1 with v1alpha2 TLSRoute patch)
+echo "Installing Gateway API CRDs..." >&2
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+
+# Cilium 1.19 operator requires TLSRoute v1alpha2 (served=false in v1.5.1 CRD)
+echo "Patching TLSRoute CRD for v1alpha2 compatibility..." >&2
+kubectl patch crd tlsroutes.gateway.networking.k8s.io --type=json \
+    -p='[{"op": "replace", "path": "/spec/versions/1/served", "value": true}]'
+
+# Wait for operator to be ready
+echo "Waiting for Cilium operator..." >&2
+kubectl rollout status deploy/cilium-operator -n kube-system --timeout=120s
+
+# Patch agent ClusterRole — cilium upgrade does not add Gateway API RBAC to agent
+echo "Adding Gateway API RBAC to Cilium agent..." >&2
+kubectl patch clusterrole cilium --type=json -p='[
+  {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gatewayclasses","gateways","httproutes","grpcroutes","tlsroutes","referencegrants"], "verbs": ["get","list","watch"]}},
+  {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["gateway.networking.k8s.io"], "resources": ["gateways/status","httproutes/status","grpcroutes/status","tlsroutes/status","gatewayclasses/status"], "verbs": ["update"]}}
+]'
+
+# Restart Cilium to pick up RBAC changes
+echo "Restarting Cilium agents..." >&2
+kubectl rollout restart ds/cilium -n kube-system
+kubectl rollout status ds/cilium -n kube-system --timeout=120s
 
 # Apply LB-IPAM pool
 echo "Configuring LB-IPAM pool (CIDR: ${LB_CIDR})..." >&2
