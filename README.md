@@ -335,11 +335,12 @@ kubectl get nodes --show-labels | grep nvidia.com/gpu
 
 ### `infrastructure/network-cilium/install.sh` Options
 
-| Option      | Default       | Description             |
-|-------------|---------------|-------------------------|
-| `--version` | `1.19.4`      | Cilium version          |
-| `--cidr`    | `172.16.0.0/12`| Pod IPv4 CIDR           |
-| `--dry-run` | off           | Print command only      |
+| Option      | Default              | Description                  |
+|-------------|----------------------|------------------------------|
+| `--version` | `1.19.4`             | Cilium version               |
+| `--cidr`    | `172.16.0.0/12`      | Pod IPv4 CIDR                |
+| `--lb-cidr` | auto-detect          | LB-IPAM pool CIDR            |
+| `--dry-run` | off                  | Print commands only          |
 
 ### `infrastructure/gpu-operator/install.sh` Options
 
