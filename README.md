@@ -49,9 +49,23 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
     ├── storage-nfs/
     │   ├── install.sh                      # [vm]  Deploy csi-driver-nfs via Helm
     │   └── storage-class.yaml              # [vm]  NFS StorageClass definition
-    └── gpu-operator/
-        ├── install.sh                      # [vm]  Deploy NVIDIA GPU Operator via Helm
-        └── values.yaml                     # [vm]  Helm values (host driver reuse, CDI)
+    ├── gpu-operator/
+    │   ├── install.sh                      # [vm]  Deploy NVIDIA GPU Operator via Helm
+    │   └── values.yaml                     # [vm]  Helm values (host driver reuse, CDI)
+    ├── cert-manager/
+    │   ├── install.sh                      # [vm]  Deploy cert-manager via Helm
+    │   ├── values.yaml                     # [vm]  Helm values (CRD management, DNS config)
+    │   ├── clusterissuer.yaml              # [vm]  Let's Encrypt production ClusterIssuer template
+    │   ├── clusterissuer-staging.yaml      # [vm]  Let's Encrypt staging ClusterIssuer template
+    │   └── secret.yaml.example             # [vm]  Cloudflare API token secret template
+    └── external-dns/
+        ├── install.sh                      # [vm]  Deploy external-dns for Cloudflare DNS sync
+        ├── deployment.yaml                 # [vm]  ExternalDNS Deployment template
+        ├── namespace.yaml                  # [vm]  Namespace
+        ├── serviceaccount.yaml             # [vm]  ServiceAccount
+        ├── clusterrole.yaml                # [vm]  ClusterRole (Gateway API + core resources)
+        ├── clusterrolebinding.yaml         # [vm]  ClusterRoleBinding
+        └── secret.yaml.example             # [vm]  Cloudflare API token secret template
 ```
 
 ### Network CIDRs
@@ -100,7 +114,7 @@ cp bootstrap/k8s-gpu-node/.env.example bootstrap/k8s-gpu-node/.env
 #   K8S_PASSWORD_HASH=<run: openssl passwd -6>
 #   K8S_SSH_PUB_KEY=<your public key>
 #   K8S_GPU_DEVICES="0000:01:00.0 0000:01:00.1"  # lspci -nn | grep -i nvidia
-#   K8S_VIRTIOFS_SOURCE="/var/home/junjie/.cache/huggingface/hub"
+#   K8S_VIRTIOFS_SOURCE="/home/<user>/.cache/huggingface/hub"
 
 # For storage server (optional)
 cp bootstrap/storage-server/.env.example bootstrap/storage-server/.env
@@ -264,6 +278,38 @@ bash infrastructure/gpu-operator/install.sh
 kubectl get nodes --show-labels | grep nvidia.com/gpu
 ```
 
+#### cert-manager (TLS Certificate Management)
+
+Requires a Cloudflare API token with Zone:DNS:Edit permission. Installs cert-manager via Helm and creates Let's Encrypt ClusterIssuers using DNS-01 challenges.
+
+```bash
+# Deploy cert-manager with production Let's Encrypt
+bash infrastructure/cert-manager/install.sh \
+    --email <your-email> \
+    --cf-token <cloudflare-api-token>
+
+# Use staging for testing
+bash infrastructure/cert-manager/install.sh \
+    --email <your-email> \
+    --cf-token <cloudflare-api-token> \
+    --staging
+```
+
+#### external-dns (Automated DNS Record Management)
+
+Syncs Gateway API hostnames to Cloudflare DNS automatically. Requires a separate Cloudflare API token (recommended for audit isolation from cert-manager).
+
+```bash
+# Deploy external-dns for junjie.pro zone
+bash infrastructure/external-dns/install.sh \
+    --cf-token <cloudflare-api-token>
+
+# Custom domain filter
+bash infrastructure/external-dns/install.sh \
+    --cf-token <cloudflare-api-token> \
+    --domain-filter example.com
+```
+
 ## Important Notes
 
 - **DHCP IP**: VMs get dynamic IPs from the default network (bridge `virbr0`). Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
@@ -344,12 +390,35 @@ kubectl get nodes --show-labels | grep nvidia.com/gpu
 | `--lb-cidr` | auto-detect          | LB-IPAM pool CIDR            |
 | `--dry-run` | off                  | Print commands only          |
 
+### `infrastructure/storage-nfs/install.sh` Options
+
+| Option      | Default                           | Description              |
+|-------------|-----------------------------------|--------------------------|
+| `--server`  | `storage-001.k8s.junjie.pro`      | NFS server address       |
+
 ### `infrastructure/gpu-operator/install.sh` Options
 
 | Option      | Default       | Description                  |
 |-------------|---------------|------------------------------|
-| `--version` | `""` (latest) | GPU Operator Helm chart ver  |
+| `--version` | `v26.3.2`     | GPU Operator Helm chart ver  |
 | `--dry-run` | off           | Print command only           |
+
+### `infrastructure/cert-manager/install.sh` Options
+
+| Option       | Required | Description                                      |
+|--------------|----------|--------------------------------------------------|
+| `--email`    | yes      | Email for Let's Encrypt notifications             |
+| `--cf-token` | no*      | Cloudflare API token (unless secret exists)       |
+| `--staging`  | no       | Use Let's Encrypt staging environment             |
+| `--dry-run`  | no       | Print resources without applying                  |
+
+### `infrastructure/external-dns/install.sh` Options
+
+| Option             | Default      | Description                                  |
+|--------------------|--------------|----------------------------------------------|
+| `--cf-token`       | — (required) | Cloudflare API token                         |
+| `--domain-filter`  | `junjie.pro` | DNS zone to manage                           |
+| `--dry-run`        | off          | Print resources without applying             |
 
 ### `.env` Variables
 

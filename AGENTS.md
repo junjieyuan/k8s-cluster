@@ -54,10 +54,13 @@ All scripts use `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to 
 
 ```
 [host]  bootstrap/vm-image-upload.sh, bootstrap/k8s-node/build.sh,
-        bootstrap/storage-server/build.sh, bootstrap/vm-deploy.sh
+        bootstrap/k8s-gpu-node/build.sh, bootstrap/storage-server/build.sh,
+        bootstrap/vm-deploy.sh
 [vm]    bootstrap/kubeadm/init-node.sh, bootstrap/kubeadm/init-control-plane.sh,
         bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
-[vm]    infrastructure/network-cilium/install.sh, infrastructure/storage-nfs/install.sh
+[vm]    infrastructure/network-cilium/install.sh, infrastructure/storage-nfs/install.sh,
+        infrastructure/gpu-operator/install.sh, infrastructure/cert-manager/install.sh,
+        infrastructure/external-dns/install.sh
 ```
 
 Host scripts provision VMs; VM scripts run inside the guest. Infrastructure
