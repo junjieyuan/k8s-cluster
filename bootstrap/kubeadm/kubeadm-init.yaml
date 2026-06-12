@@ -10,7 +10,7 @@ apiVersion: kubeadm.k8s.io/v1beta4
 kind: ClusterConfiguration
 controlPlaneEndpoint: "${CONTROL_PLANE_ENDPOINT}"  # substituted at runtime; default: control-plane.k8s.junjie.pro:6443
 networking:
-  podSubnet: "172.16.0.0/12"      # must match the Cilium install --cidr value
+  podSubnet: "${POD_CIDR}"           # must match the Cilium install --cidr value
   serviceSubnet: "10.96.0.0/12"
 controllerManager:
   extraArgs:

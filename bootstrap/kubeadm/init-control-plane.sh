@@ -56,7 +56,8 @@ command -v envsubst >/dev/null 2>&1 || { echo "Error: envsubst not found" >&2; e
 # Generate kubeadm config from template, substituting endpoint
 KUBEADM_GENERATED="$(mktemp /tmp/kubeadm-init.XXXXXX.yaml)"
 trap 'rm -f "$KUBEADM_GENERATED"' EXIT
-CONTROL_PLANE_ENDPOINT="$CONTROL_PLANE_ENDPOINT" envsubst '$CONTROL_PLANE_ENDPOINT' < "$KUBEADM_CONFIG" > "$KUBEADM_GENERATED"
+export CONTROL_PLANE_ENDPOINT POD_CIDR
+envsubst '$CONTROL_PLANE_ENDPOINT $POD_CIDR' < "$KUBEADM_CONFIG" > "$KUBEADM_GENERATED"
 
 if $DRY_RUN; then
     echo "DRY-RUN:" >&2

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # storage-server type-specific deploy functions.
+set -euo pipefail
 # Sourced by vm-deploy.sh. Do not run directly.
 # Expected globals from vm-deploy.sh: TYPE_DIR
 
