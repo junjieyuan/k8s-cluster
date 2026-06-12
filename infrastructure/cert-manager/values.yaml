@@ -1,0 +1,5 @@
+crds:
+  enabled: true
+  keep: true
+dns01RecursiveNameservers: "223.5.5.5:53"
+dns01RecursiveNameserversOnly: true
