@@ -77,7 +77,10 @@ The caller never needs to prefix with `sudo`. Any `sudo` in README examples refe
 
 ## Secrets
 
-`.env` and `*.ign` are gitignored. `.env.example` uses placeholder values only. Real credentials were never committed. Never add real secrets to templates or example files.
+**Separate secrets from code.** Real values live in gitignored files
+(`.env`, `*.ign`, credentials). Committed files use `.example` variants
+with placeholder values only. This keeps secrets out of git history and
+allows each environment to supply its own values.
 
 **Absolute prohibition:** never commit any secret, key, password, token,
 certificate, or credential to this repository. This includes but is not
