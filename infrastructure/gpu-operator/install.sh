@@ -14,14 +14,14 @@ Deploys Node Feature Discovery (NFD), container toolkit, and device plugin.
 Uses host NVIDIA driver (containerized driver disabled) and CDI for device injection.
 
 Options:
-  --version VERSION   GPU Operator Helm chart version (default: latest)
+  --version VERSION   GPU Operator Helm chart version (default: v26.3.2)
   --dry-run           Print commands without executing
   --help              Show this help
 EOF
     exit "${1:-0}"
 }
 
-VERSION=""
+VERSION="${VERSION:-v26.3.2}"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
@@ -53,22 +53,18 @@ else
     helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
 fi
 
-# Build version args
-VERSION_ARGS=()
-[[ -n "$VERSION" ]] && VERSION_ARGS=(--version "$VERSION")
-
 if $DRY_RUN; then
     echo "DRY-RUN: helm upgrade --install gpu-operator nvidia/gpu-operator \\"
     echo "  --namespace ${NAMESPACE} --create-namespace \\"
-    echo "  ${VERSION_ARGS[*]:-} -f ${SCRIPT_DIR}/values.yaml"
+    echo "  --version ${VERSION} -f ${SCRIPT_DIR}/values.yaml"
     exit 0
 fi
 
-echo "-> Deploying NVIDIA GPU Operator${VERSION:+ (version: ${VERSION})} to namespace: ${NAMESPACE}..."
+echo "-> Deploying NVIDIA GPU Operator (version: ${VERSION}) to namespace: ${NAMESPACE}..."
 helm upgrade --install gpu-operator nvidia/gpu-operator \
     --namespace "${NAMESPACE}" \
     --create-namespace \
-    "${VERSION_ARGS[@]}" \
+    --version "${VERSION}" \
     -f "${SCRIPT_DIR}/values.yaml"
 
 echo ""
