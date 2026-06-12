@@ -4,6 +4,8 @@
 
 This is a k8s cluster provisioning project — Bash scripts and YAML templates, not a software application. There are no build commands, tests, linters, or type checkers.
 
+Application workloads running on the cluster are managed in the **`k8s-apps`** repo (`~/Projects/k8s-apps`). Do not place application manifests here.
+
 ## Tool constraints
 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script. Never introduce Python, Node, or other languages.
