@@ -41,10 +41,38 @@ idempotent — re-running them should result in no-op.
 - **L2 announcements** — enable in bare-metal environments for external LB access. Requires RBAC patch on `clusterrole cilium` for `leases` resource.
 - **kube-proxy replacement** — mandatory for Gateway API. Cilium handles service routing via eBPF.
 
+## Naming conventions
+
+- **Environment variables** — use `K8S_` prefix for all `.env` variables that
+  are shared across bootstrap types (e.g. `K8S_HOSTNAME`, `K8S_PREINSTALLED_PACKAGES`).
+  Non-`K8S_` names are only for type-specific vars (e.g. GPU pass-through PCI addresses).
+- **Version variables** — use component-specific env var names (e.g.
+  `METRICS_SERVER_VERSION`, `GPU_OPERATOR_VERSION`), never bare `VERSION`.
+  This avoids collisions when scripts are sourced together.
+- **Helm release names** — match the directory name (e.g. `metrics-server/`
+  deploys release `metrics-server`).
+
+## Directory structure
+
+```
+bootstrap/<type>/
+│   ├── .env.example           # Environment variable template
+│   ├── build.sh               # Compile Butane template → Ignition config
+│   ├── deploy.sh              # Type-specific deploy logic (sourced by vm-deploy.sh)
+│   └── <type>.bu.tmpl         # Butane template (FCOS config)
+
+infrastructure/<component>/
+│   ├── install.sh             # Entry point (Helm upgrade --install or kubectl apply)
+│   ├── values.yaml            # Helm values (only if using Helm)
+│   ├── *.yaml                 # K8s resource manifests (kubectl-apply components)
+│   └── secret.yaml.example    # Secret template (only if component needs credentials)
+```
+
 ## Code style
 
 - **Emoji** — avoid decorative emoji in scripts and templates. Use only when it genuinely aids readability of diagnostic output (e.g. `[OK]` / `[FAIL]` markers). No emoji in comments, usage texts, or echo statements that users don't need to see.
 - **Comments** — keep them concise and factual. Describe *why*, not *what* the code already says. Remove stale or misleading comments immediately. In YAML templates, prefer short end-of-line annotations over multi-line block comments.
+- **Runtime deps** — check with `command -v` early in the script, before any work begins. Never assume `helm`, `kubectl`, or other tools are present.
 
 ## Script invocation
 
@@ -60,7 +88,7 @@ All scripts use `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to 
         bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
 [vm]    infrastructure/network-cilium/install.sh, infrastructure/storage-nfs/install.sh,
         infrastructure/gpu-operator/install.sh, infrastructure/cert-manager/install.sh,
-        infrastructure/external-dns/install.sh
+        infrastructure/external-dns/install.sh, infrastructure/metrics-server/install.sh
 ```
 
 Host scripts provision VMs; VM scripts run inside the guest. Infrastructure
@@ -199,6 +227,68 @@ cilium upgrade --version 1.19.4 --set gatewayAPI.enabled=true --set kubeProxyRep
   require `get/list/watch` on `namespaces` in addition to their primary
   resources. Missing permissions cause crash loops with `forbidden` errors.
   Check the component's official RBAC manifest, don't guess.
+
+## Deployment checklist
+
+Before declaring any infrastructure component "done", verify every item.
+This applies to new components and upgrades alike.
+
+### Version consistency
+
+- [ ] `usage()` help text, script default variable, Helm chart version, and
+  container image tag all reference the same version.
+- [ ] Version is overridable via both `--version` CLI flag and an environment
+  variable (e.g. `METRICS_SERVER_VERSION="${METRICS_SERVER_VERSION:-3.13.1}"`).
+  Use component-specific env var names to avoid collisions.
+- [ ] `helm search repo <chart> --versions` confirms this is the latest stable.
+
+### values.yaml
+
+- [ ] Contains **only** values that differ from the chart defaults. Run
+  `helm show values <chart> --version <x.y.z>` to check each key.
+- [ ] Every non-default value has a comment explaining **why** it's set
+  (not what it does — the upstream docs already say that).
+- [ ] Prefer `args` (append) over overriding `defaultArgs` (replace) so chart
+  defaults pass through transparently.
+
+### Helm upgrade command
+
+- [ ] Always uses `--wait --timeout 5m`. Without it, the script exits before
+  pods are ready and hides startup failures.
+- [ ] `--dry-run` output is an exact copy of the real command, including all
+  flags, quotes, and variable references. No prose summaries — the user must
+  be able to copy-paste the dry-run output and run it manually.
+
+### Idempotency
+
+- [ ] Re-running `install.sh` produces a no-op: `helm upgrade --install`
+  reports no changes, no pods restart.
+
+### Post-deploy verification
+
+- [ ] `kubectl logs -n <ns> deployment/<name>` shows no E/F-level errors.
+- [ ] Pod status is `Running` with all containers `Ready`.
+- [ ] The script's final summary echoes the version that was actually deployed.
+- [ ] `kubectl top nodes` / `kubectl top pods -A` works if metrics-server was
+  part of the change.
+
+### Helm release sync
+
+- [ ] `helm -n <ns> get values <release> -a` (computed values) matches the
+  intent of the local `values.yaml`. No stale keys from previous revisions.
+- [ ] `kubectl -n <ns> get deploy <name> -o jsonpath='{.spec.template.spec.containers[0].image}'`
+  matches the chart's app version.
+
+### Script conventions
+
+- [ ] `SCRIPT_DIR` pattern used for locating sibling files.
+- [ ] Helm repo detection uses structured output:
+  `helm repo list -o yaml 2>/dev/null | grep -q "<repo-url>"` — never parse
+  the human-readable table with `grep '^name\b'`.
+- [ ] `helm repo update <name>` runs after `helm repo add`, not only in the
+  already-exists branch.
+- [ ] Clustered changes (e.g. Cilium operator restart after config patch) use
+  `kubectl rollout restart` and wait for availability.
 
 ## Commit conventions
 

@@ -21,7 +21,8 @@ EOF
     exit "${1:-0}"
 }
 
-VERSION="1.19.4"
+CILIUM_VERSION="${CILIUM_VERSION:-1.19.4}"
+VERSION="${CILIUM_VERSION}"
 CIDR="172.16.0.0/12"
 LB_CIDR=""
 DRY_RUN=false
@@ -90,8 +91,8 @@ if [[ -z "$LB_CIDR" ]]; then
 fi
 
 if $DRY_RUN; then
-    echo "DRY-RUN: cilium install --version $VERSION \\"
-    echo "  --set ipam.operator.clusterPoolIPv4PodCIDRList='{$CIDR}' \\"
+    echo "DRY-RUN: cilium install --version \"$VERSION\" \\"
+    echo "  --set \"ipam.operator.clusterPoolIPv4PodCIDRList={$CIDR}\" \\"
     echo "  --set kubeProxyReplacement=true \\"
     echo "  --set gatewayAPI.enabled=true"
     echo ""

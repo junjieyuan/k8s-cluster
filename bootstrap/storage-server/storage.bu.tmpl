@@ -35,7 +35,7 @@ systemd:
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${PREINSTALLED_PACKAGES}
+        ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${K8S_PREINSTALLED_PACKAGES}
         [Install]
         WantedBy=multi-user.target
     # Enable NFS server after rpm-ostree installs the packages.

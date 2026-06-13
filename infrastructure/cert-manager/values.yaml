@@ -1,5 +1,12 @@
+# Install cert-manager CRDs and keep them on Helm uninstall.
+# enabled=true: cert-manager chart does not install CRDs by default.
+# keep=true: prevents accidental CRD deletion when uninstalling the chart.
 crds:
   enabled: true
   keep: true
+
+# Use AliDNS (223.5.5.5) as recursive nameserver for DNS01 self-checks.
+# Default uses authoritative nameservers, which may not be reachable from
+# the cluster or may return stale NXDOMAIN during propagation.
 dns01RecursiveNameservers: "223.5.5.5:53"
 dns01RecursiveNameserversOnly: true

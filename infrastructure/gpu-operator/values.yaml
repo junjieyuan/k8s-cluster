@@ -1,5 +1,9 @@
+# Use host NVIDIA driver instead of deploying a containerized one.
+# Host driver is managed at OS level and shared across containers.
 driver:
   enabled: false
 
+# Explicitly set the CDI device spec class name for nvidia-device-plugin.
+# Without this, the plugin may not register devices under the expected class.
 cdi:
   defaultDeviceSpecClassName: "nvidia.com/gpu"

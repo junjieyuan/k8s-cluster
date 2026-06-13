@@ -66,6 +66,9 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
         ├── clusterrole.yaml                # [vm]  ClusterRole (Gateway API + core resources)
         ├── clusterrolebinding.yaml         # [vm]  ClusterRoleBinding
         └── secret.yaml.example             # [vm]  Cloudflare API token secret template
+    └── metrics-server/
+        ├── install.sh                      # [vm]  Deploy metrics-server via Helm
+        └── values.yaml                     # [vm]  Helm values (kubelet-insecure-tls)
 ```
 
 ### Network CIDRs
@@ -310,6 +313,18 @@ bash infrastructure/external-dns/install.sh \
     --domain-filter example.com
 ```
 
+#### metrics-server (Resource Metrics)
+
+Enables `kubectl top` and HPA (Horizontal Pod Autoscaler). Installed via Helm. Uses `--kubelet-insecure-tls` since kubeadm kubelet certs lack IP SANs.
+
+```bash
+# Deploy metrics-server
+bash infrastructure/metrics-server/install.sh
+
+# Dry-run
+bash infrastructure/metrics-server/install.sh --dry-run
+```
+
 ## Important Notes
 
 - **DHCP IP**: VMs get dynamic IPs from the default network (bridge `virbr0`). Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
@@ -395,6 +410,8 @@ bash infrastructure/external-dns/install.sh \
 | Option      | Default                           | Description              |
 |-------------|-----------------------------------|--------------------------|
 | `--server`  | `storage-001.k8s.junjie.pro`      | NFS server address       |
+| `--version` | `4.13.2`                          | CSI driver chart version |
+| `--dry-run` | off                               | Print command only       |
 
 ### `infrastructure/gpu-operator/install.sh` Options
 
@@ -403,12 +420,20 @@ bash infrastructure/external-dns/install.sh \
 | `--version` | `v26.3.2`     | GPU Operator Helm chart ver  |
 | `--dry-run` | off           | Print command only           |
 
+### `infrastructure/metrics-server/install.sh` Options
+
+| Option      | Default   | Description                     |
+|-------------|-----------|---------------------------------|
+| `--version` | `3.13.1`  | metrics-server chart version    |
+| `--dry-run` | off       | Print command only              |
+
 ### `infrastructure/cert-manager/install.sh` Options
 
 | Option       | Required | Description                                      |
 |--------------|----------|--------------------------------------------------|
 | `--email`    | yes      | Email for Let's Encrypt notifications             |
 | `--cf-token` | no*      | Cloudflare API token (unless secret exists)       |
+| `--version`  | no       | cert-manager Helm chart version (default: v1.20.2)|
 | `--staging`  | no       | Use Let's Encrypt staging environment             |
 | `--dry-run`  | no       | Print resources without applying                  |
 
@@ -418,6 +443,7 @@ bash infrastructure/external-dns/install.sh \
 |--------------------|--------------|----------------------------------------------|
 | `--cf-token`       | — (required) | Cloudflare API token                         |
 | `--domain-filter`  | `junjie.pro` | DNS zone to manage                           |
+| `--version`        | `v0.21.0`    | external-dns image tag                       |
 | `--dry-run`        | off          | Print resources without applying             |
 
 ### `.env` Variables
@@ -450,4 +476,4 @@ bash infrastructure/external-dns/install.sh \
 | `K8S_PASSWORD_HASH`     | `openssl passwd -6` output                       |
 | `K8S_SSH_PUB_KEY`       | SSH public key for core user                     |
 | `K8S_HOSTNAME`          | OS hostname (default: `k8s-storage-001`)         |
-| `PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `nfs-utils`)       |
+| `K8S_PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `nfs-utils`)       |

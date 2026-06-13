@@ -18,6 +18,7 @@ is required.
 Options:
   --email EMAIL         Email for Let's Encrypt notifications (required)
   --cf-token TOKEN      Cloudflare API token (required unless secret already exists)
+  --version VERSION      cert-manager Helm chart version (default: v1.20.2)
   --staging             Use Let's Encrypt staging environment for testing (default: production)
   --dry-run             Print resources without applying
   --help                Show this help
@@ -27,6 +28,7 @@ EOF
 
 ACME_EMAIL=""
 CF_TOKEN=""
+VERSION="${CERT_MANAGER_VERSION}"
 DRY_RUN=false
 STAGING=false
 
@@ -34,6 +36,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --email)    ACME_EMAIL="$2";    shift 2 ;;
         --cf-token) CF_TOKEN="$2";      shift 2 ;;
+        --version)  VERSION="$2";       shift 2 ;;
         --staging)  STAGING=true;       shift ;;
         --dry-run)  DRY_RUN=true;       shift ;;
         --help)     usage 0 ;;
@@ -51,28 +54,35 @@ if ! command -v helm &>/dev/null; then
     exit 1
 fi
 
-echo "Installing cert-manager ${CERT_MANAGER_VERSION}..."
-
-if [[ "$DRY_RUN" == true ]]; then
-    echo "[dry-run] would add jetstack Helm repo and install cert-manager"
-    echo "[dry-run] would create Secret cloudflare-api-token"
-    echo "[dry-run] would apply ClusterIssuer ${ISSUER_FILE}"
-    echo ""
-    echo "cert-manager dry-run complete."
+if $DRY_RUN; then
+    echo "DRY-RUN: helm upgrade --install cert-manager ${CHART_NAME} \\"
+    echo "  --namespace \"${NAMESPACE}\" \\"
+    echo "  --create-namespace \\"
+    echo "  --version \"${VERSION}\" \\"
+    echo "  --values \"${SCRIPT_DIR}/values.yaml\" \\"
+    echo "  --wait \\"
+    echo "  --timeout 5m"
+    if [[ "$STAGING" == true ]]; then
+        echo "DRY-RUN: create ClusterIssuer letsencrypt-staging"
+    else
+        echo "DRY-RUN: create ClusterIssuer letsencrypt-prod"
+    fi
     exit 0
 fi
 
-if ! helm repo list -o yaml 2>/dev/null | grep -q "https://charts.jetstack.io"; then
+echo "Installing cert-manager ${VERSION}..."
+
+if ! helm repo list -o yaml 2>/dev/null | grep -q "${CHART_REPO}"; then
     echo "-> Adding jetstack Helm repo..."
     helm repo add jetstack "${CHART_REPO}"
 fi
 helm repo update jetstack
 
-echo "-> Installing cert-manager via Helm (${CERT_MANAGER_VERSION})..."
+echo "-> Installing cert-manager via Helm (${VERSION})..."
 helm upgrade --install cert-manager "${CHART_NAME}" \
     --namespace "${NAMESPACE}" \
     --create-namespace \
-    --version "${CERT_MANAGER_VERSION}" \
+    --version "${VERSION}" \
     --values "${SCRIPT_DIR}/values.yaml" \
     --wait \
     --timeout 5m
@@ -115,5 +125,5 @@ rm -f "$CLUSTERISSUER_YAML"
 
 echo ""
 echo "cert-manager ready."
-echo "  Chart:      ${CHART_NAME} ${CERT_MANAGER_VERSION}"
+echo "  Chart:        ${CHART_NAME} ${VERSION}"
 echo "  ClusterIssuer: $(if [[ "$STAGING" == true ]]; then echo letsencrypt-staging; else echo letsencrypt-prod; fi)"

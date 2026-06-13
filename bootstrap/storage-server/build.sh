@@ -47,7 +47,7 @@ fi
 set -a; source "$ENV_FILE"; set +a
 
 # Validate required vars
-REQUIRED_VARS=("K8S_PASSWORD_HASH" "K8S_SSH_PUB_KEY" "K8S_HOSTNAME" "PREINSTALLED_PACKAGES")
+REQUIRED_VARS=("K8S_PASSWORD_HASH" "K8S_SSH_PUB_KEY" "K8S_HOSTNAME" "K8S_PREINSTALLED_PACKAGES")
 for var in "${REQUIRED_VARS[@]}"; do
     if [[ -z "${!var:-}" ]]; then
         echo "Error: Required variable $var is not set in .env" >&2
@@ -56,7 +56,7 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 # Build envsubst variable list — single space-separated argument
-ENVSUBST_VARS='$K8S_PASSWORD_HASH $K8S_SSH_PUB_KEY $K8S_HOSTNAME $PREINSTALLED_PACKAGES'
+ENVSUBST_VARS='$K8S_PASSWORD_HASH $K8S_SSH_PUB_KEY $K8S_HOSTNAME $K8S_PREINSTALLED_PACKAGES'
 
 if $VALIDATE_ONLY; then
     echo "Validating $TEMPLATE..." >&2

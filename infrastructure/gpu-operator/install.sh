@@ -4,6 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 NAMESPACE="gpu-operator"
+CHART_REPO="https://helm.ngc.nvidia.com/nvidia"
+CHART_NAME="nvidia/gpu-operator"
+GPU_OPERATOR_VERSION="${GPU_OPERATOR_VERSION:-v26.3.2}"
 
 usage() {
     cat <<'EOF'
@@ -21,7 +24,7 @@ EOF
     exit "${1:-0}"
 }
 
-VERSION="${VERSION:-v26.3.2}"
+VERSION="${GPU_OPERATOR_VERSION}"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
@@ -33,41 +36,44 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Verify cluster access
 if ! kubectl cluster-info >/dev/null 2>&1; then
     echo "Error: cannot access Kubernetes cluster. Check that kubectl is configured." >&2
     exit 1
 fi
 
-# Verify Helm is available
 if ! command -v helm >/dev/null 2>&1; then
     echo "Error: helm not found. Install it first: https://helm.sh/docs/intro/install/" >&2
     exit 1
 fi
 
-# Add/update Helm repo
-echo "-> Configuring Helm repo..."
-if helm repo list 2>/dev/null | grep -q '^nvidia\b'; then
-    helm repo update nvidia
-else
-    helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
-fi
-
 if $DRY_RUN; then
-    echo "DRY-RUN: helm upgrade --install gpu-operator nvidia/gpu-operator \\"
-    echo "  --namespace ${NAMESPACE} --create-namespace \\"
-    echo "  --version ${VERSION} -f ${SCRIPT_DIR}/values.yaml"
+    echo "DRY-RUN: helm upgrade --install gpu-operator ${CHART_NAME} \\"
+    echo "  --namespace \"${NAMESPACE}\" \\"
+    echo "  --create-namespace \\"
+    echo "  --version \"${VERSION}\" \\"
+    echo "  -f \"${SCRIPT_DIR}/values.yaml\" \\"
+    echo "  --wait \\"
+    echo "  --timeout 5m"
     exit 0
 fi
 
+echo "-> Configuring Helm repo..."
+if ! helm repo list -o yaml 2>/dev/null | grep -q "${CHART_REPO}"; then
+    helm repo add nvidia "${CHART_REPO}"
+fi
+helm repo update nvidia
+
 echo "-> Deploying NVIDIA GPU Operator (version: ${VERSION}) to namespace: ${NAMESPACE}..."
-helm upgrade --install gpu-operator nvidia/gpu-operator \
+helm upgrade --install gpu-operator "${CHART_NAME}" \
     --namespace "${NAMESPACE}" \
     --create-namespace \
     --version "${VERSION}" \
-    -f "${SCRIPT_DIR}/values.yaml"
+    -f "${SCRIPT_DIR}/values.yaml" \
+    --wait \
+    --timeout 5m
 
 echo ""
 echo "NVIDIA GPU Operator deployed."
-echo "Run 'kubectl get pods -n ${NAMESPACE} -o wide' to verify."
+echo "  Chart:   ${CHART_NAME} ${VERSION}"
+echo "Verify: kubectl get pods -n ${NAMESPACE} -o wide"
 echo "GPU nodes (only) should run nvidia-container-toolkit-daemonset and nvidia-device-plugin pods."

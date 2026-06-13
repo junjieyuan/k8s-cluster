@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="external-dns"
-EXTERNAL_DNS_VERSION="v0.21.0"
+EXTERNAL_DNS_VERSION="${EXTERNAL_DNS_VERSION:-v0.21.0}"
 
 usage() {
     cat <<'EOF'
@@ -15,6 +15,7 @@ Requires a Cloudflare API token with Zone:DNS:Edit permission.
 Options:
   --cf-token TOKEN       Cloudflare API token (required unless secret already exists)
   --domain-filter DOMAIN  DNS zone to manage (default: junjie.pro)
+  --version VERSION       external-dns image tag (default: v0.21.0)
   --dry-run              Print resources without applying
   --help                 Show this help
 EOF
@@ -23,12 +24,14 @@ EOF
 
 CF_TOKEN=""
 DOMAIN_FILTER="junjie.pro"
+VERSION="${EXTERNAL_DNS_VERSION}"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --cf-token)       CF_TOKEN="$2";         shift 2 ;;
         --domain-filter)  DOMAIN_FILTER="$2";    shift 2 ;;
+        --version)        VERSION="$2";          shift 2 ;;
         --dry-run)        DRY_RUN=true;           shift ;;
         --help)           usage 0 ;;
         *)                echo "Unknown option: $1" >&2; usage 1 ;;
@@ -40,17 +43,17 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "Deploying external-dns ${EXTERNAL_DNS_VERSION}..."
-
-if [[ "$DRY_RUN" == true ]]; then
-    echo "[dry-run] would create namespace external-dns"
-    echo "[dry-run] would apply ServiceAccount, ClusterRole, ClusterRoleBinding"
-    echo "[dry-run] would create Secret cloudflare-api-token"
-    echo "[dry-run] would deploy external-dns with domain-filter=${DOMAIN_FILTER}"
-    echo ""
-    echo "external-dns dry-run complete."
+if $DRY_RUN; then
+    echo "DRY-RUN: kubectl apply -f ${SCRIPT_DIR}/namespace.yaml"
+    echo "DRY-RUN: kubectl apply -f ${SCRIPT_DIR}/serviceaccount.yaml"
+    echo "DRY-RUN: kubectl apply -f ${SCRIPT_DIR}/clusterrole.yaml"
+    echo "DRY-RUN: kubectl apply -f ${SCRIPT_DIR}/clusterrolebinding.yaml"
+    echo "DRY-RUN: create secret cloudflare-api-token"
+    echo "DRY-RUN: envsubst + kubectl apply deployment.yaml (version=${VERSION}, domain-filter=${DOMAIN_FILTER})"
     exit 0
 fi
+
+echo "Deploying external-dns ${VERSION}..."
 
 echo "-> Creating namespace..."
 kubectl apply -f "${SCRIPT_DIR}/namespace.yaml"
@@ -78,8 +81,8 @@ fi
 echo "-> Deploying external-dns..."
 DEPLOYMENT_YAML="$(mktemp)"
 trap "rm -f \"$DEPLOYMENT_YAML\"" EXIT
-export DOMAIN_FILTER
-envsubst '$DOMAIN_FILTER' < "${SCRIPT_DIR}/deployment.yaml" > "$DEPLOYMENT_YAML"
+export DOMAIN_FILTER VERSION
+envsubst '$DOMAIN_FILTER $VERSION' < "${SCRIPT_DIR}/deployment.yaml" > "$DEPLOYMENT_YAML"
 kubectl apply -f "$DEPLOYMENT_YAML"
 rm -f "$DEPLOYMENT_YAML"
 
@@ -89,6 +92,6 @@ kubectl rollout status deployment/external-dns -n "${NAMESPACE}" --timeout=120s
 echo ""
 echo "external-dns deployed."
 echo "  Namespace: ${NAMESPACE}"
-echo "  Version:   ${EXTERNAL_DNS_VERSION}"
+echo "  Version:   ${VERSION}"
 echo "  Domain:    *.${DOMAIN_FILTER}"
 echo "  Source:    Gateway HTTPRoute / GRPCRoute"

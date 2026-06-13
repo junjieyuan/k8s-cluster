@@ -1,0 +1,5 @@
+# kubeadm kubelet certs lack IP SANs — x509 validation against node IPs fails.
+# Mounting cluster CA is insufficient; --kubelet-insecure-tls is the
+# recommended approach for kubeadm/bare-metal clusters.
+args:
+  - --kubelet-insecure-tls
