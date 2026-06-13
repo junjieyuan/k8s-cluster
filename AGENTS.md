@@ -213,18 +213,6 @@ cilium version
 cilium upgrade --version 1.19.4 --set gatewayAPI.enabled=true --set kubeProxyReplacement=true
 ```
 
-### Post-migration restart
-
-After deleting and recreating a Gateway (e.g. rename, namespace change), the
-Cilium eBPF LB state may become stale — `cilium service list` shows no backends
-for the LB IP, and traffic times out despite the Gateway being Accepted/Programmed.
-Restart the Cilium and Envoy daemonsets to clear stale state:
-
-```bash
-kubectl rollout restart ds/cilium -n kube-system
-kubectl rollout restart ds/cilium-envoy -n kube-system
-```
-
 ## cert-manager — DNS-01 with Cloudflare
 
 ClusterIssuer `letsencrypt-prod` uses DNS-01 challenge with a Cloudflare API
