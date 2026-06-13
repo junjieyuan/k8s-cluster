@@ -213,6 +213,33 @@ cilium version
 cilium upgrade --version 1.19.4 --set gatewayAPI.enabled=true --set kubeProxyReplacement=true
 ```
 
+### Post-migration restart
+
+After deleting and recreating a Gateway (e.g. rename, namespace change), the
+Cilium eBPF LB state may become stale — `cilium service list` shows no backends
+for the LB IP, and traffic times out despite the Gateway being Accepted/Programmed.
+Restart the Cilium and Envoy daemonsets to clear stale state:
+
+```bash
+kubectl rollout restart ds/cilium -n kube-system
+kubectl rollout restart ds/cilium-envoy -n kube-system
+```
+
+## cert-manager — DNS-01 with Cloudflare
+
+ClusterIssuer `letsencrypt-prod` uses DNS-01 challenge with a Cloudflare API
+token to support wildcard certificates (`*.k8s.junjie.pro`). The token lives
+in a manually-created Secret:
+
+```bash
+kubectl create secret generic cloudflare-api-token \
+    --from-literal=api-token=<token> -n cert-manager
+```
+
+The `infrastructure/cert-manager/install.sh` creates the ClusterIssuer
+referencing this Secret. HTTP-01 challenges are insufficient for wildcard
+certificates — DNS-01 is mandatory.
+
 ## Debugging deployments
 
 - **After deploying any new component, immediately check logs** for E/F-level
