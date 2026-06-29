@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Auto-escalate to root (virsh requires privileges)
 if [[ $EUID -ne 0 ]]; then
-    exec sudo "$0" "$@"
+    exec sudo bash "$0" "$@"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

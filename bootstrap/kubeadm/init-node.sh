@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Auto-escalate to root (modprobe, sysctl, systemctl require privileges)
 if [[ $EUID -ne 0 ]]; then
-    exec sudo "$0" "$@"
+    exec sudo bash "$0" "$@"
 fi
 
 usage() {

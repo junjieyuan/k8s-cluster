@@ -41,7 +41,7 @@ done
 # Install cilium CLI if missing
 if ! command -v cilium >/dev/null 2>&1; then
     if [[ $EUID -ne 0 ]]; then
-        exec sudo "$0" "$@"
+        exec sudo bash "$0" "$@"
     fi
     echo "cilium CLI not found — installing..." >&2
 

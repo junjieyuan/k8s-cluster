@@ -41,6 +41,9 @@ VM_NETWORK="virbr0"
 DRY_RUN=false
 BLOCKPULL=true
 
+# Preserve original args for re-exec under sudo (the loop below consumes $@)
+ORIGINAL_ARGS=("$@")
+
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -126,7 +129,7 @@ fi
 
 # --- Escalate to root for provisioning ---
 if [[ $EUID -ne 0 ]]; then
-    exec sudo "$0" "$@"
+    exec sudo bash "$0" "${ORIGINAL_ARGS[@]}"
 fi
 
 # --- Default image path if not specified ---
