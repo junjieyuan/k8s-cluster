@@ -339,7 +339,7 @@ bash infrastructure/metrics-server/install.sh --dry-run
 | Option           | Default                    | Description            |
 |------------------|----------------------------|------------------------|
 | `--type`         | — (required)               | Node type: `k8s-node`, `k8s-gpu-node`, or `storage-server` |
-| `--name`         | `k8s-control-plane-001`    | Libvirt domain name    |
+| `--name`         | — (required)               | Libvirt domain name (e.g. `k8s-control-plane-001`) |
 | `--cpus`         | `2`                        | vCPUs                  |
 | `--memory`       | `4096`                     | Memory in MiB          |
 | `--disk-size`    | `64`                       | Disk in GiB            |
@@ -455,7 +455,7 @@ bash infrastructure/metrics-server/install.sh --dry-run
 | `K8S_PASSWORD_HASH`          | `openssl passwd -6` output                                |
 | `K8S_SSH_PUB_KEY`            | SSH public key for core user                              |
 | `K8S_HOSTNAME`               | OS hostname (default: `k8s-control-plane-001`)            |
-| `K8S_PREINSTALLED_PACKAGES`  | rpm-ostree packages (default: `"cri-o1.35 kubernetes1.35"`) |
+| `K8S_PREINSTALLED_PACKAGES`  | rpm-ostree packages (default: `"cri-o1.36 kubernetes1.36"`) |
 
 #### `bootstrap/k8s-gpu-node/.env`
 
@@ -464,7 +464,7 @@ bash infrastructure/metrics-server/install.sh --dry-run
 | `K8S_PASSWORD_HASH`      | `openssl passwd -6` output                                |
 | `K8S_SSH_PUB_KEY`        | SSH public key for core user                              |
 | `K8S_HOSTNAME`           | OS hostname (default: `k8s-gpu-worker-001`)               |
-| `K8S_PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `"cri-o1.35 kubernetes1.35"`) |
+| `K8S_PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `"cri-o1.36 kubernetes1.36"`) |
 | `K8S_GPU_DEVICES`        | PCI addresses for passthrough (e.g. `"0000:01:00.0 0000:01:00.1"`) |
 | `K8S_VIRTIOFS_SOURCE`    | Host directory for virtiofs passthrough                   |
 | `K8S_VIRTIOFS_TARGET`    | Guest mount tag (default: `hf_hub`)                       |

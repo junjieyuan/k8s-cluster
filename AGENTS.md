@@ -32,7 +32,7 @@ idempotent — re-running them should result in no-op.
 - **Gateway API CRDs** — install from `https://github.com/kubernetes-sigs/gateway-api/releases/download/<version>/standard-install.yaml`. Version must match what Cilium supports. Current: `v1.5.1`. Do not copy CRD YAML into the repo — always reference upstream URL.
 - **Cilium** — use `cilium upgrade --version <x.y.z>` with explicit version. The CLI's built-in default may not match the latest stable. Current: `1.19.4`.
 - **Kubernetes** — `kubeadm` pins versions via `.env` or CLI flags (`--kubernetes-version`). Do not use `stable` or `latest` markers.
-- **CRI-O** — version matches Kubernetes minor (e.g. k8s 1.35 → CRI-O 1.35). Pinned in `.env`.
+- **CRI-O** — version matches Kubernetes minor (e.g. k8s 1.36 → CRI-O 1.36). Pinned in `.env`.
 
 ## Infrastructure best practices
 
