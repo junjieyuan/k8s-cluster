@@ -89,3 +89,5 @@ systemd:
         ExecStart=/usr/bin/systemctl reboot
         [Install]
         WantedBy=multi-user.target
+    - name: firewalld.service
+      mask: true
