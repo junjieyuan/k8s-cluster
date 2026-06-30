@@ -70,7 +70,9 @@ for bin in crio kubelet; do
 done
 
 echo "Enabling CRI-O and kubelet..." >&2
-systemctl enable --now crio
-systemctl enable --now kubelet
+# Enable before starting: ensures boot persistence even if a start fails and aborts the script.
+systemctl enable crio kubelet
+systemctl start crio
+systemctl start kubelet
 
 echo "Node initialization complete." >&2
