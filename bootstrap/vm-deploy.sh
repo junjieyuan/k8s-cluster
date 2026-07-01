@@ -161,7 +161,7 @@ command -v virt-install >/dev/null 2>&1 || fail "virt-install not found (install
 command -v virsh >/dev/null 2>&1       || fail "virsh not found (install libvirt-client)"
 
 if virsh dominfo "$VM_NAME" &>/dev/null; then
-    fail "VM '$VM_NAME' already exists. Remove it with: virsh destroy $VM_NAME && virsh undefine $VM_NAME"
+    fail "VM '$VM_NAME' already exists. Remove it with: sudo virsh destroy $VM_NAME && sudo virsh undefine --domain $VM_NAME --managed-save --remove-all-storage --snapshots-metadata --checkpoints-metadata --nvram --tpm"
 fi
 
 # --- Provision VM ---
@@ -170,7 +170,7 @@ echo "Provisioning VM '$VM_NAME'..." >&2
 cleanup() {
     echo "Cleaning up failed VM '$VM_NAME'..." >&2
     virsh destroy "$VM_NAME" 2>/dev/null || true
-    virsh undefine "$VM_NAME" 2>/dev/null || true
+    virsh undefine --domain "$VM_NAME" --managed-save --remove-all-storage --snapshots-metadata --checkpoints-metadata --nvram --tpm 2>/dev/null || true
 }
 trap cleanup ERR
 
