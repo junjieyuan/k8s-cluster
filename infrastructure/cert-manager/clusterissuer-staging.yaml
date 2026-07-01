@@ -14,3 +14,6 @@ spec:
             apiTokenSecretRef:
               name: cloudflare-api-token
               key: api-token
+    selector:
+      dnsZones:
+        - ${ACME_DNS_ZONE}

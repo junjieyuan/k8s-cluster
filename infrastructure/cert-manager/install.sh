@@ -20,6 +20,7 @@ Options:
   --cf-token TOKEN      Cloudflare API token (required unless secret already exists)
   --version VERSION      cert-manager Helm chart version (default: v1.20.2)
   --staging             Use Let's Encrypt staging environment for testing (default: production)
+  --dns-zone ZONE       DNS zone for DNS-01 solver filter (default: junjie.pro)
   --dry-run             Print resources without applying
   --help                Show this help
 EOF
@@ -28,6 +29,7 @@ EOF
 
 ACME_EMAIL=""
 CF_TOKEN=""
+ACME_DNS_ZONE="junjie.pro"
 VERSION="${CERT_MANAGER_VERSION}"
 DRY_RUN=false
 STAGING=false
@@ -38,6 +40,7 @@ while [[ $# -gt 0 ]]; do
         --cf-token) CF_TOKEN="$2";      shift 2 ;;
         --version)  VERSION="$2";       shift 2 ;;
         --staging)  STAGING=true;       shift ;;
+        --dns-zone) ACME_DNS_ZONE="$2"; shift 2 ;;
         --dry-run)  DRY_RUN=true;       shift ;;
         --help)     usage 0 ;;
         *)          echo "Unknown option: $1" >&2; usage 1 ;;
@@ -51,6 +54,11 @@ fi
 
 if ! command -v helm &>/dev/null; then
     echo "Error: helm is required. Install from https://helm.sh" >&2
+    exit 1
+fi
+
+if ! kubectl cluster-info >/dev/null 2>&1; then
+    echo "Error: cannot access Kubernetes cluster. Check that kubectl is configured." >&2
     exit 1
 fi
 
@@ -100,7 +108,7 @@ elif [[ -n "$CF_TOKEN" ]]; then
     echo "  Secret ${SECRET_NAME} created."
 else
     echo "Error: --cf-token is required (no existing secret ${SECRET_NAME})." >&2
-    echo "  Or create secret manually from ${SCRIPT_DIR}/secret.yaml.example" >&2
+    echo "  kubectl create secret generic ${SECRET_NAME} --from-literal=api-token=<token> -n ${NAMESPACE}" >&2
     exit 1
 fi
 
@@ -116,10 +124,10 @@ if [[ ! -f "${SCRIPT_DIR}/${ISSUER_FILE}" ]]; then
 fi
 
 echo "-> Applying ClusterIssuer (${ISSUER_FILE})..."
-export ACME_EMAIL
+export ACME_EMAIL ACME_DNS_ZONE
 CLUSTERISSUER_YAML="$(mktemp)"
 trap "rm -f \"$CLUSTERISSUER_YAML\"" EXIT
-envsubst '$ACME_EMAIL' < "${SCRIPT_DIR}/${ISSUER_FILE}" > "$CLUSTERISSUER_YAML"
+envsubst '$ACME_EMAIL $ACME_DNS_ZONE' < "${SCRIPT_DIR}/${ISSUER_FILE}" > "$CLUSTERISSUER_YAML"
 kubectl apply -f "$CLUSTERISSUER_YAML"
 rm -f "$CLUSTERISSUER_YAML"
 
