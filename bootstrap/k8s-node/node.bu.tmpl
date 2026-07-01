@@ -48,3 +48,8 @@ systemd:
         ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${K8S_PREINSTALLED_PACKAGES}
         [Install]
         WantedBy=multi-user.target
+# Workaround for cri-o SELinux execmem denial on kernel 7.x with composefs.
+# https://bugzilla.redhat.com/show_bug.cgi?id=2477939
+kernel_arguments:
+  should_exist:
+    - enforcing=0

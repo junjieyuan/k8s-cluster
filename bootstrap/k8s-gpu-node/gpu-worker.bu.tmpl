@@ -91,3 +91,8 @@ systemd:
         WantedBy=multi-user.target
     - name: firewalld.service
       mask: true
+# Workaround for cri-o SELinux execmem denial on kernel 7.x with composefs.
+# https://bugzilla.redhat.com/show_bug.cgi?id=2477939
+kernel_arguments:
+  should_exist:
+    - enforcing=0
