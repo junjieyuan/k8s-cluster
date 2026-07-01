@@ -203,7 +203,9 @@ virt-install \
     --noautoconsole \
     "${EXTRA_ARGS[@]}"
 
-trap - ERR
+# After virt-install succeeds, switch to a lighter error handler.
+# The VM exists — don't destroy it on failure, just warn.
+trap 'echo "ERROR: VM $VM_NAME provisioning failed after virt-install." >&2; echo "  Check: sudo virsh dominfo $VM_NAME" >&2; echo "  Manual cleanup if needed: sudo virsh destroy $VM_NAME && sudo virsh undefine --domain $VM_NAME --managed-save --remove-all-storage --snapshots-metadata --checkpoints-metadata --nvram --tpm" >&2' ERR
 
 echo "VM '$VM_NAME' provisioned successfully." >&2
 
@@ -223,3 +225,6 @@ fi
 
 # --- Type-specific finalization ---
 deploy_finalize "$VM_NAME"
+
+# All provisioning steps completed — clear the error trap
+trap - ERR
