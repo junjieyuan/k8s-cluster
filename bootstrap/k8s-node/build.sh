@@ -65,6 +65,8 @@ if $VALIDATE_ONLY; then
     exit 0
 fi
 
+# Remove stale output owned by qemu from a previous provisioning run
+rm -f "$OUTPUT"
 echo "Compiling $TEMPLATE -> $OUTPUT..." >&2
 envsubst "$ENVSUBST_VARS" < "$TEMPLATE" | butane -o "$OUTPUT"
 echo "Generated $OUTPUT" >&2

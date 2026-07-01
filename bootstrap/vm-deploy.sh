@@ -187,6 +187,8 @@ virsh autostart "$VM_NAME"
 
 echo "Removing Ignition config (fwcfg) from VM definition..." >&2
 virsh dumpxml "$VM_NAME" | sed '/<sysinfo/,/<\/sysinfo>/d' | virsh define /dev/stdin
+rm -f "$IGNITION_FILE"
+echo "Cleaned up Ignition file." >&2
 
 if $BLOCKPULL; then
     echo "Pulling backing image into overlay (blockpull)..." >&2
