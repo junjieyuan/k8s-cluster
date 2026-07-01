@@ -73,7 +73,19 @@ deploy_finalize() {
     tmp_xml="$(mktemp)"
     virsh dumpxml "$vm_name" > "$tmp_xml"
 
-    # Build device snippet: virtiofs
+    # 1. memoryBacking: memfd + shared (required for virtiofs)
+    local mem_snippet
+    mem_snippet="$(mktemp)"
+    cat > "$mem_snippet" <<'XMLEOF'
+  <memoryBacking>
+    <source type='memfd'/>
+    <access mode='shared'/>
+  </memoryBacking>
+XMLEOF
+    sed -i "/<\/currentMemory>/r $mem_snippet" "$tmp_xml"
+    rm -f "$mem_snippet"
+
+    # 2. Build device snippet: virtiofs
     local dev_snippet
     dev_snippet="$(mktemp)"
     _virtiofs_xml "$K8S_HFHUB_SOURCE" >> "$dev_snippet"
@@ -92,7 +104,7 @@ deploy_finalize() {
     rm -f "$tmp_xml" "$dev_snippet"
     trap - ERR
 
-    echo "[OK] virtiofs: ${K8S_HFHUB_SOURCE} -> /var/nfs-data/models/huggingface" >&2
+    echo "[OK] virtiofs: ${K8S_HFHUB_SOURCE} -> /var/nfs/models/huggingface" >&2
 
     if $need_start; then
         echo "Starting $vm_name with virtiofs configuration..." >&2

@@ -16,8 +16,10 @@ storage:
       mode: 0644
       contents:
         inline: |
-          /var/nfs           192.168.122.0/24(rw,sync,no_root_squash,no_subtree_check,fsid=0)
-          /var/nfs/models    192.168.122.0/24(ro,sync,no_subtree_check,crossmnt)
+          # no_root_squash is required: Kubernetes pods running as root need to
+          # write to NFS-backed PVCs. The export is restricted to the cluster subnet.
+          /var/nfs           ${K8S_NFS_SUBNET}(rw,sync,no_root_squash,no_subtree_check,fsid=0)
+          /var/nfs/models    ${K8S_NFS_SUBNET}(ro,sync,no_subtree_check,crossmnt)
   directories:
     - path: /var/nfs
       mode: 0755
