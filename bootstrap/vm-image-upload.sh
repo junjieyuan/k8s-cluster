@@ -71,6 +71,15 @@ if virsh vol-info --pool "$POOL" "$VOL_NAME" &>/dev/null; then
     exit 1
 fi
 
+# Trap to clean up a partially-created volume on interrupt or error
+_vol_cleanup() {
+    if virsh vol-info --pool "$POOL" "$VOL_NAME" &>/dev/null; then
+        echo "Cleaning up volume '$VOL_NAME'..." >&2
+        virsh vol-delete --pool "$POOL" "$VOL_NAME" 2>/dev/null || true
+    fi
+}
+trap _vol_cleanup ERR INT TERM
+
 echo "Creating volume..." >&2
 virsh vol-create-as "$POOL" "$VOL_NAME" "$SIZE" --format "$FORMAT"
 
@@ -92,5 +101,6 @@ else
     exit 1
 fi
 
+trap - ERR INT TERM
 echo "" >&2
 echo "Upload complete: $VOL_PATH" >&2
