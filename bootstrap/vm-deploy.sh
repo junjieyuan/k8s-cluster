@@ -15,7 +15,7 @@ Supported types: k8s-node, k8s-gpu-node, storage-server
 
 Options:
   --type TYPE       Node type (k8s-node, k8s-gpu-node, or storage-server). Required.
-  --name NAME       VM name (example: k8s-control-plane-001). Required.
+  --name NAME       VM name (default from .env: K8S_HOSTNAME)
   --cpus N          Number of vCPUs (default from .env: K8S_CPUS).
   --memory MiB      Memory in MiB (default from .env: K8S_MEMORY).
   --disk-size GiB   Disk size in GiB (default from .env: K8S_DISK_SIZE).
@@ -70,12 +70,19 @@ if [[ -z "$NODE_TYPE" ]]; then
     fail "--type is required (one of: k8s-node, k8s-gpu-node, storage-server)"
 fi
 
-if [[ -z "$VM_NAME" ]]; then
-    fail "--name is required (example: k8s-control-plane-001)"
-fi
-
 TYPE_DIR="${SCRIPT_DIR}/${NODE_TYPE}"
 [[ -d "$TYPE_DIR" ]] || fail "Type directory not found: $TYPE_DIR"
+
+# --- Load defaults from .env (before VM_NAME check so K8S_HOSTNAME is available) ---
+if [[ -f "$TYPE_DIR/.env" ]]; then
+    set -a; source "$TYPE_DIR/.env"; set +a
+fi
+
+# VM name defaults to K8S_HOSTNAME, --name overrides
+VM_NAME="${VM_NAME:-${K8S_HOSTNAME:-}}"
+if [[ -z "$VM_NAME" ]]; then
+    fail "--name is required, or set K8S_HOSTNAME in ${NODE_TYPE}/.env (example: k8s-control-plane-001)"
+fi
 
 DEPLOY_SCRIPT="${TYPE_DIR}/deploy.sh"
 [[ -f "$DEPLOY_SCRIPT" ]] || fail "deploy.sh not found in $TYPE_DIR"
@@ -84,10 +91,6 @@ DEPLOY_SCRIPT="${TYPE_DIR}/deploy.sh"
 # shellcheck disable=SC1090
 source "$DEPLOY_SCRIPT"
 
-# --- Hardware defaults from .env ---
-if [[ -f "$TYPE_DIR/.env" ]]; then
-    set -a; source "$TYPE_DIR/.env"; set +a
-fi
 VM_CPUS="${VM_CPUS:-${K8S_CPUS:-}}"
 VM_MEMORY="${VM_MEMORY:-${K8S_MEMORY:-}}"
 VM_DISK_SIZE="${VM_DISK_SIZE:-${K8S_DISK_SIZE:-}}"
