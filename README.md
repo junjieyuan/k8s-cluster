@@ -42,9 +42,11 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │       ├── kubeadm-join-worker.yaml        # [vm]  kubeadm JoinConfiguration template (worker)
 │       └── kubeadm-join-control-plane.yaml # [vm]  kubeadm JoinConfiguration template (control plane)
 ├── docs/
-│   ├── control-plane-upgrade.md            # Control plane node upgrade guide
-│   ├── worker-upgrade.md                   # Worker node upgrade guide
-│   └── gpu-worker-upgrade.md               # GPU worker node upgrade guide
+│   ├── cilium-gateway.md                     # Cilium Gateway API best practices
+│   ├── control-plane-upgrade.md              # Control plane node upgrade guide
+│   ├── deployment-checklist.md               # Pre/post-deployment verification checklist
+│   ├── gpu-worker-upgrade.md                 # GPU worker node upgrade guide
+│   └── worker-upgrade.md                     # Worker node upgrade guide
 └── infrastructure/
     ├── network-cilium/
     │   ├── install.sh                      # [vm]  Install Cilium CNI (Gateway API + kube-proxy replacement)
@@ -60,16 +62,14 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
     │   ├── install.sh                      # [vm]  Deploy cert-manager via Helm
     │   ├── values.yaml                     # [vm]  Helm values (CRD management, DNS config)
     │   ├── clusterissuer.yaml              # [vm]  Let's Encrypt production ClusterIssuer template
-    │   ├── clusterissuer-staging.yaml      # [vm]  Let's Encrypt staging ClusterIssuer template
-    │   └── secret.yaml.example             # [vm]  Cloudflare API token secret template
-    └── external-dns/
-        ├── install.sh                      # [vm]  Deploy external-dns for Cloudflare DNS sync
-        ├── deployment.yaml                 # [vm]  ExternalDNS Deployment template
-        ├── namespace.yaml                  # [vm]  Namespace
-        ├── serviceaccount.yaml             # [vm]  ServiceAccount
-        ├── clusterrole.yaml                # [vm]  ClusterRole (Gateway API + core resources)
-        ├── clusterrolebinding.yaml         # [vm]  ClusterRoleBinding
-        └── secret.yaml.example             # [vm]  Cloudflare API token secret template
+    │   └── clusterissuer-staging.yaml      # [vm]  Let's Encrypt staging ClusterIssuer template
+    ├── external-dns/
+    │   ├── install.sh                      # [vm]  Deploy external-dns for Cloudflare DNS sync
+    │   ├── deployment.yaml                 # [vm]  ExternalDNS Deployment template
+    │   ├── namespace.yaml                  # [vm]  Namespace
+    │   ├── serviceaccount.yaml             # [vm]  ServiceAccount
+    │   ├── clusterrole.yaml                # [vm]  ClusterRole (Gateway API + core resources)
+    │   └── clusterrolebinding.yaml         # [vm]  ClusterRoleBinding
     └── metrics-server/
         ├── install.sh                      # [vm]  Deploy metrics-server via Helm
         └── values.yaml                     # [vm]  Helm values (kubelet-insecure-tls)
@@ -285,5 +285,5 @@ For replacing nodes with newer versions, see the guides in [`docs/`](docs/):
 - **DHCP IP**: VMs get dynamic IPs from the default network (bridge `virbr0`). Reboots may change the address, breaking the control plane endpoint. Set a static DHCP lease or use `virsh net-update` to pin the MAC to an IP.
 - **Token expiry**: `kubeadm token create` tokens expire after 24 hours. Regenerate if needed.
 - **Hostname resolution**: If using a hostname for `--endpoint` (e.g. `control-plane.k8s.junjie.pro`), ensure it resolves on every node via DNS or `/etc/hosts`.
-- **NFSv4 + FCOS**: FCOS requires `fsid=0` on the NFS export to establish the NFSv4 pseudofilesystem root. Without it, NFSv4 clients silently fall back to NFSv3 because the server cannot traverse `/var` (separate bind-mounted filesystem on FCOS). With `fsid=0`, the export becomes the NFSv4 root — the CSI StorageClass must use `share: /` (not `/var/nfs-data`) since the mount path is relative to the pseudoroot. `subDir` subdirectories are created under the physical export path normally.
+- **NFSv4 + FCOS**: FCOS requires `fsid=0` on the NFS export to establish the NFSv4 pseudofilesystem root. Without it, NFSv4 clients silently fall back to NFSv3 because the server cannot traverse `/var` (separate bind-mounted filesystem on FCOS). With `fsid=0`, the export becomes the NFSv4 root — the CSI StorageClass must use `share: /` (not `/var/nfs`) since the mount path is relative to the pseudoroot. `subDir` subdirectories are created under the physical export path normally.
 

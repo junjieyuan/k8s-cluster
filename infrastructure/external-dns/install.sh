@@ -74,7 +74,7 @@ elif [[ -n "$CF_TOKEN" ]]; then
     echo "  Secret ${SECRET_NAME} created."
 else
     echo "Error: --cf-token is required (no existing secret ${SECRET_NAME})." >&2
-    echo "  Or create secret manually from ${SCRIPT_DIR}/secret.yaml.example" >&2
+    echo "  kubectl create secret generic ${SECRET_NAME} --from-literal=api-token=<token> -n ${NAMESPACE}" >&2
     exit 1
 fi
 

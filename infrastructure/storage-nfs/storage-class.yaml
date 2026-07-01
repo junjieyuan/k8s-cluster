@@ -8,7 +8,11 @@ provisioner: nfs.csi.k8s.io
 allowVolumeExpansion: true
 parameters:
   server: ${NFS_SERVER}
-  share: /                          # NFSv4 root (fsid=0 maps to /var/nfs-data)
+  share: /                          # NFSv4 root mapping: the NFS server exports /var/nfs with fsid=0,
+                                     # making it the NFSv4 pseudofilesystem root. Clients mount "/"
+                                     # which NFSv4 maps to /var/nfs on the server. If the server
+                                     # export changes, update the fsid=0 export (not this value).
+                                     # See README "Important Notes".
   subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}"    # organizes PVs by namespace/pvc
 reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
 volumeBindingMode: Immediate
