@@ -30,6 +30,10 @@ storage:
   directories:
     - path: /etc/ucore-autorebase
       mode: 0754
+    - path: /var/opt/models
+      mode: 0755
+    - path: /var/opt/models/huggingface
+      mode: 0755
 systemd:
   units:
     # Phase 1: rebase FCOS → uCore NVIDIA (unsigned, follows ublue official pattern)
@@ -89,6 +93,38 @@ systemd:
         ExecStart=/usr/bin/systemctl reboot
         [Install]
         WantedBy=multi-user.target
+    # Mount HF Hub via virtiofs (lazy: only activated on access, unmounts after 5 min idle).
+    # systemd.mount(5) requires a canonical path in Where= — symlinks are forbidden.
+    # The kernel resolves all symlink components at mount time, and systemd must
+    # match against /proc/self/mountinfo which always contains the canonical path.
+    # FCOS: /opt → /var/opt, so we use /var/opt/models/huggingface directly.
+    - name: var-opt-models-huggingface.mount
+      enabled: false
+      contents: |
+        [Unit]
+        Description=HuggingFace Hub virtiofs mount
+        After=network.target
+
+        [Mount]
+        What=hf_hub
+        Where=/var/opt/models/huggingface
+        Type=virtiofs
+        Options=ro,defaults
+        DirectoryMode=0755
+
+    - name: var-opt-models-huggingface.automount
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Automount HuggingFace Hub via virtiofs
+
+        [Automount]
+        Where=/var/opt/models/huggingface
+        TimeoutIdleSec=300
+
+        [Install]
+        WantedBy=multi-user.target
+
     - name: firewalld.service
       mask: true
 # Workaround for cri-o SELinux execmem denial on kernel 7.x with composefs.
