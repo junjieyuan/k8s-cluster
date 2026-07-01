@@ -6,7 +6,9 @@ metadata:
     type: nfs-models
 spec:
   capacity:
-    storage: 1Ti
+    # NFS PVs have no actual quota enforcement — this is informational only.
+    # The real limit is the NFS server's underlying disk space.
+    storage: 10Ti
   accessModes:
     - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
