@@ -57,6 +57,33 @@ deploy_finalize() {
         set -a; source "$env_file"; set +a
     fi
 
+    # Wait for the 3-phase autorebase chain to complete.
+    # gpu-worker.bu.tmpl creates /etc/ucore-autorebase/k8s as the final step
+    # of phase 3 (k8s-packages-install.service). Until this file exists, the
+    # VM may be mid-rebase and we must not destroy it.
+    local max_wait=600  # 10 minutes
+    local waited=0
+    local interval=10
+    echo "Waiting for autorebase chain to complete (up to ${max_wait}s)..." >&2
+    while [[ $waited -lt $max_wait ]]; do
+        local domstate
+        domstate="$(virsh domstate "$vm_name" 2>/dev/null || echo "not found")"
+        if [[ "$domstate" == "running" ]]; then
+            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+                core@"$vm_name" "test -f /etc/ucore-autorebase/k8s" 2>/dev/null; then
+                echo "  [OK] Autorebase chain complete (k8s marker found)" >&2
+                break
+            fi
+        fi
+        sleep "$interval"
+        waited=$((waited + interval))
+    done
+
+    if [[ $waited -ge $max_wait ]]; then
+        echo "Warning: timed out waiting for autorebase chain. VM may be misconfigured." >&2
+        echo "Check: ssh core@${vm_name} 'ls /etc/ucore-autorebase/'" >&2
+    fi
+
     local state
     state="$(virsh domstate "$vm_name" 2>/dev/null || echo "not found")"
 
@@ -88,7 +115,8 @@ deploy_finalize() {
     # 1. cpu: host-passthrough (required for NVIDIA driver to see host features)
     # Handle both self-closing <cpu .../> and multi-line <cpu>...</cpu>
     sed -i 's|<cpu [^>]*/>|<cpu mode="host-passthrough" check="none" migratable="on"/>|' "$tmp_xml"
-    if grep -q '<cpu ' "$tmp_xml"; then
+    # Only apply the multi-line replacement if a non-self-closing <cpu> tag remains
+    if grep -q '<cpu[^/]*>' "$tmp_xml"; then
         sed -i '/<cpu /,/<\/cpu>/c\  <cpu mode="host-passthrough" check="none" migratable="on"/>' "$tmp_xml"
     fi
 
