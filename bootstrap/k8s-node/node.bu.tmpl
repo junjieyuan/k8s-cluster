@@ -48,8 +48,15 @@ systemd:
         ExecStart=/usr/bin/rpm-ostree install --reboot --idempotent --assumeyes ${K8S_PREINSTALLED_PACKAGES}
         [Install]
         WantedBy=multi-user.target
-# Workaround for cri-o SELinux execmem denial on kernel 7.x with composefs.
-# https://bugzilla.redhat.com/show_bug.cgi?id=2477939
+# NOTE: After rpm-ostree installs packages and reboots, you must manually SSH
+# in and run:
+#   bash kubeadm/init-node.sh
+# This script enables crio/kubelet, loads kernel modules, and applies sysctl.
+# Automation would require a ConditionPathExists-guarded oneshot (see
+# storage-server's nfs-server-enable.service for the pattern), but is
+# intentionally manual: the operator needs to copy kubeadm/ to the VM anyway.
+
+# TODO: Remove this when https://bugzilla.redhat.com/show_bug.cgi?id=2477939 is resolved.
 kernel_arguments:
   should_exist:
     - enforcing=0

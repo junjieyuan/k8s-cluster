@@ -127,8 +127,7 @@ systemd:
 
     - name: firewalld.service
       mask: true
-# Workaround for cri-o SELinux execmem denial on kernel 7.x with composefs.
-# https://bugzilla.redhat.com/show_bug.cgi?id=2477939
+# TODO: Remove this when https://bugzilla.redhat.com/show_bug.cgi?id=2477939 is resolved.
 kernel_arguments:
   should_exist:
     - enforcing=0
