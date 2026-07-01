@@ -29,10 +29,11 @@ idempotent — re-running them should result in no-op.
 ## Component versions
 
 - **Always target latest stable** — pin explicit versions, check upstream before deployment or upgrade.
-- **Gateway API CRDs** — install from `https://github.com/kubernetes-sigs/gateway-api/releases/download/<version>/standard-install.yaml`. Version must match what Cilium supports. Current: `v1.5.1`. Do not copy CRD YAML into the repo — always reference upstream URL.
-- **Cilium** — use `cilium upgrade --version <x.y.z>` with explicit version. The CLI's built-in default may not match the latest stable. Current: `1.19.4`.
+- **Source of truth** — version defaults live in each script's `usage()` or `.env.example`. This file does not duplicate them — they drift.
+- **Gateway API CRDs** — install from `https://github.com/kubernetes-sigs/gateway-api/releases/download/<version>/standard-install.yaml`. Version must match what Cilium supports. Do not copy CRD YAML into the repo — always reference upstream URL.
+- **Cilium** — use `cilium upgrade --version <x.y.z>` with explicit version. The CLI's built-in default may not match the latest stable.
 - **Kubernetes** — `kubeadm` pins versions via `.env` or CLI flags (`--kubernetes-version`). Do not use `stable` or `latest` markers.
-- **CRI-O** — version matches Kubernetes minor (e.g. k8s 1.36 → CRI-O 1.36). Pinned in `.env`.
+- **CRI-O** — version matches Kubernetes minor (e.g. k8s 1.36 → cri-o 1.36). Pinned in `.env`.
 
 ## Infrastructure best practices
 
@@ -66,6 +67,8 @@ infrastructure/<component>/
 │   ├── values.yaml            # Helm values (only if using Helm)
 │   ├── *.yaml                 # K8s resource manifests (kubectl-apply components)
 │   └── secret.yaml.example    # Secret template (only if component needs credentials)
+
+docs/                           # Upgrade guides (not daily ops — use for planned version bumps)
 ```
 
 ## Code style
@@ -100,6 +103,7 @@ Never confuse the two.
 All privileged scripts auto-escalate via `exec sudo "$0" "$@"` at the top when `$EUID -ne 0`. The caller does not need to prefix with `sudo`. Scripts that never need root:
 
 - `bootstrap/k8s-node/build.sh` — runs butane/envsubst as normal user
+- `bootstrap/k8s-gpu-node/build.sh` — runs butane/envsubst as normal user
 - `bootstrap/storage-server/build.sh` — runs butane/envsubst as normal user
 
 `infrastructure/network-cilium/install.sh` only escalates when installing the `cilium` CLI binary to `/usr/local/bin`.
@@ -113,12 +117,29 @@ The caller never needs to prefix with `sudo`. Any `sudo` in README examples refe
 2. `bash bootstrap/k8s-node/build.sh` compiles `node.bu.tmpl` → `node.ign` via envsubst + butane
 3. `bootstrap/vm-deploy.sh` injects `node.ign` into the VM
 
+### GPU workers
+1. Copy `bootstrap/k8s-gpu-node/.env.example` → `bootstrap/k8s-gpu-node/.env`, fill in `K8S_PASSWORD_HASH`, `K8S_SSH_PUB_KEY`, `K8S_GPU_DEVICES`, and optionally `K8S_VIRTIOFS_SOURCE`
+2. `bash bootstrap/k8s-gpu-node/build.sh` compiles `gpu-worker.bu.tmpl` → `gpu-worker.ign` via envsubst + butane
+3. `bootstrap/vm-deploy.sh` injects `gpu-worker.ign` into the VM
+4. On first boot, uCore autorebase (unsigned → signed, 2 reboots) then k8s package install (1 reboot)
+5. `deploy_finalize` stops the VM, attaches GPU PCI devices + virtiofs, sets cpu=host-passthrough + memory backing, then restarts
+
 ### Storage server
 1. Copy `bootstrap/storage-server/.env.example` → `bootstrap/storage-server/.env`, fill in `K8S_PASSWORD_HASH` and `K8S_SSH_PUB_KEY` (other vars have defaults)
 2. `bash bootstrap/storage-server/build.sh` compiles `storage.bu.tmpl` → `storage.ign` via envsubst + butane
 3. `bootstrap/vm-deploy.sh` injects `storage.ign` into the VM
 
 `build.sh` uses `set -a; source .env; set +a` to load all variables. `envsubst` substitutes the appropriate set of variables per template (`K8S_PASSWORD_HASH $K8S_SSH_PUB_KEY $K8S_HOSTNAME ...`).
+
+### SELinux enforcing=0 on k8s nodes
+
+Both `k8s-node/node.bu.tmpl` and `k8s-gpu-node/gpu-worker.bu.tmpl` set
+`kernel_arguments.should_exist: [enforcing=0]` to disable SELinux enforcement.
+This is a workaround for cri-o `execmem` AVC denial on kernel 7.x with composefs.
+See https://bugzilla.redhat.com/show_bug.cgi?id=2477939.
+
+Storage server templates do NOT use this — they don't run cri-o or kubelet so
+the denial doesn't apply.
 
 ## kubeadm configs are templates
 
@@ -135,6 +156,12 @@ The caller never needs to prefix with `sudo`. Any `sudo` in README examples refe
 - `control-plane.k8s.junjie.pro:6443` — default, override with `--endpoint`
 - `172.16.0.0/12` / `10.96.0.0/12` — pod/service CIDRs, override with `--pod-cidr` / `--cidr`
 - Package versions via `.env` vars or CLI flags
+- `K8S_PREINSTALLED_PACKAGES` — rpm-ostree packages, set in `.env`
+- `K8S_HOSTNAME` — OS hostname set by Ignition, set in `.env`
+- `--no-blockpull` — skip backing file pull after `virt-install` (faster provisioning)
+- `--install-cni` / `--cni-version` — auto-install Cilium after `kubeadm init`
+- `--dry-run` — available on most scripts, print generated config and commands
+- Infrastructure `install.sh` scripts accept `--version` to override chart/image version
 
 ## Secrets
 
@@ -314,7 +341,10 @@ This applies to new components and upgrades alike.
 ## Image provisioning order
 
 1. `bootstrap/vm-image-upload.sh` → libvirt storage pool
-2. `bootstrap/k8s-node/build.sh` → `node.ign` (or `bootstrap/storage-server/build.sh` → `storage.ign`)
-3. `bootstrap/vm-deploy.sh` → VM
+2. `bootstrap/<type>/build.sh` → Ignition config (node.ign / gpu-worker.ign / storage.ign)
+3. `bootstrap/vm-deploy.sh --type <type>` → VM
 
-After provisioning, `vm-deploy.sh` removes fwcfg Ignition from the domain XML (security) and enables autostart.
+After provisioning, `vm-deploy.sh` removes the fwcfg Ignition from the domain XML
+(security — the Ignition config contains the password hash) and enables autostart.
+For GPU nodes, `deploy_finalize` additionally attaches PCI devices, virtiofs, and
+configures CPU/memory backing.
