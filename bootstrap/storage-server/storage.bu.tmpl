@@ -16,14 +16,14 @@ storage:
       mode: 0644
       contents:
         inline: |
-          /var/nfs-data           192.168.122.0/24(rw,sync,no_root_squash,no_subtree_check,fsid=0)
-          /var/nfs-data/models    192.168.122.0/24(ro,sync,no_subtree_check,crossmnt)
+          /var/nfs           192.168.122.0/24(rw,sync,no_root_squash,no_subtree_check,fsid=0)
+          /var/nfs/models    192.168.122.0/24(ro,sync,no_subtree_check,crossmnt)
   directories:
-    - path: /var/nfs-data
+    - path: /var/nfs
       mode: 0755
-    - path: /var/nfs-data/models
+    - path: /var/nfs/models
       mode: 0755
-    - path: /var/nfs-data/models/huggingface
+    - path: /var/nfs/models/huggingface
       mode: 0755
 systemd:
   units:
@@ -47,17 +47,15 @@ systemd:
     # Uses a .mount unit (systemd-native) rather than a oneshot service —
     # systemd tracks mount state, handles unmount on shutdown automatically.
     # Unit name must match canonical path (systemd.mount(5)).
-    - name: var-nfs-data-models-huggingface.mount
+    - name: var-nfs-models-huggingface.mount
       enabled: true
       contents: |
         [Unit]
         Description=HuggingFace Hub virtiofs mount
         Before=nfs-server-enable.service
-        After=network.target
-
         [Mount]
         What=hfhub
-        Where=/var/nfs-data/models/huggingface
+        Where=/var/nfs/models/huggingface
         Type=virtiofs
         Options=ro,defaults
         DirectoryMode=0755
@@ -72,12 +70,13 @@ systemd:
       contents: |
         [Unit]
         Description=Enable NFS server after packages are installed
-        After=network-online.target rpm-ostree-install-packages.service var-nfs-data-models-huggingface.mount
-        Wants=network-online.target var-nfs-data-models-huggingface.mount
+        After=network-online.target rpm-ostree-install-packages.service var-nfs-models-huggingface.mount
+        Wants=network-online.target var-nfs-models-huggingface.mount
         ConditionPathExists=/usr/sbin/rpc.nfsd
         [Service]
         Type=oneshot
         RemainAfterExit=yes
         ExecStart=/usr/bin/systemctl enable --now nfs-server
+        ExecStartPost=/usr/bin/systemctl disable nfs-server-enable.service
         [Install]
         WantedBy=multi-user.target
