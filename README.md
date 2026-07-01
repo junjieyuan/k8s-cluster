@@ -148,19 +148,22 @@ bash bootstrap/storage-server/build.sh        # generates bootstrap/storage-serv
 
 #### 4. Provision VMs
 
+`--cpus`, `--memory`, `--disk-size` are optional when `K8S_CPUS`/`K8S_MEMORY`/`K8S_DISK_SIZE`
+are set in the type's `.env`. CLI flags override `.env` values.
+
 ```bash
-# Control plane
-bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-001 --cpus 2 --memory 4096 --disk-size 64
-bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-002 --cpus 4 --memory 8192 --disk-size 64
+# Control plane (defaults from .env: 2 vCPUs / 4 GiB / 64 GiB)
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-001
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-002 --cpus 4 --memory 8192
 
-# GPU worker (16 vCPUs / 32 GiB, with PCI passthrough + virtiofs)
-bash bootstrap/vm-deploy.sh --type k8s-gpu-node --name k8s-gpu-worker-001 --cpus 16 --memory 32768 --disk-size 64
+# GPU worker (defaults from .env: 16 vCPUs / 32 GiB / 64 GiB, PCI passthrough + virtiofs)
+bash bootstrap/vm-deploy.sh --type k8s-gpu-node --name k8s-gpu-worker-001
 
-# Storage server
-bash bootstrap/vm-deploy.sh --type storage-server --name k8s-storage-001 --cpus 2 --memory 4096 --disk-size 128
+# Storage server (defaults from .env: 2 vCPUs / 4 GiB / 128 GiB)
+bash bootstrap/vm-deploy.sh --type storage-server --name k8s-storage-001
 
 # Dry-run
-bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-001 --cpus 2 --memory 4096 --disk-size 64 --dry-run
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-001 --dry-run
 ```
 
 The VM boots, applies Ignition config (including rpm-ostree install of cri-o + kubernetes), and reboots. Wait ~2-3 minutes for the reboot to complete.

@@ -158,6 +158,7 @@ the denial doesn't apply.
 - Package versions via `.env` vars or CLI flags
 - `K8S_PREINSTALLED_PACKAGES` — rpm-ostree packages, set in `.env`
 - `K8S_HOSTNAME` — OS hostname set by Ignition, set in `.env`
+- `K8S_CPUS`, `K8S_MEMORY`, `K8S_DISK_SIZE` — VM hardware sizing, set in `.env`, override with `--cpus`/`--memory`/`--disk-size`
 - `--no-blockpull` — skip backing file pull after `virt-install` (faster provisioning)
 - `--install-cni` / `--cni-version` — auto-install Cilium after `kubeadm init`
 - `--dry-run` — available on most scripts, print generated config and commands
