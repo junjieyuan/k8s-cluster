@@ -41,6 +41,10 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │       ├── kubeadm-init.yaml               # [vm]  kubeadm InitConfiguration + ClusterConfiguration
 │       ├── kubeadm-join-worker.yaml        # [vm]  kubeadm JoinConfiguration template (worker)
 │       └── kubeadm-join-control-plane.yaml # [vm]  kubeadm JoinConfiguration template (control plane)
+├── docs/
+│   ├── control-plane-upgrade.md            # Control plane node upgrade guide
+│   ├── worker-upgrade.md                   # Worker node upgrade guide
+│   └── gpu-worker-upgrade.md               # GPU worker node upgrade guide
 └── infrastructure/
     ├── network-cilium/
     │   ├── install.sh                      # [vm]  Install Cilium CNI (Gateway API + kube-proxy replacement)
@@ -255,75 +259,23 @@ bash kubeadm/join-control-plane.sh \
 
 ### Infrastructure Deployments
 
-Copy the `infrastructure/` directory to a control plane node:
+Copy `infrastructure/` to a control plane node and deploy cluster-level services (Cilium CNI, NFS CSI, GPU Operator, cert-manager, external-dns, metrics-server). See [`infrastructure/README.md`](infrastructure/README.md) for details.
 
 ```bash
 scp -r infrastructure core@<control-plane-ip>:~/
 ssh core@<control-plane-ip>
+bash infrastructure/network-cilium/install.sh
+bash infrastructure/storage-nfs/install.sh --server <nfs-server>
+# ... etc — each install.sh supports --help for full options
 ```
 
-#### Storage (NFS CSI)
+## Upgrades
 
-```bash
-# Deploy csi-driver-nfs and create the StorageClass
-bash infrastructure/storage-nfs/install.sh
-```
+For replacing nodes with newer versions, see the guides in [`docs/`](docs/):
 
-#### GPU (NVIDIA Operator)
-
-Requires GPU worker nodes already joined to the cluster. Deploys Node Feature Discovery (NFD), container toolkit, and device plugin — only on nodes with NVIDIA GPUs.
-
-```bash
-# Deploy GPU operator with host driver reuse + CDI
-bash infrastructure/gpu-operator/install.sh
-
-# Verify (only GPU nodes show nvidia.com/gpu labels)
-kubectl get nodes --show-labels | grep nvidia.com/gpu
-```
-
-#### cert-manager (TLS Certificate Management)
-
-Requires a Cloudflare API token with Zone:DNS:Edit permission. Installs cert-manager via Helm and creates Let's Encrypt ClusterIssuers using DNS-01 challenges.
-
-```bash
-# Deploy cert-manager with production Let's Encrypt
-bash infrastructure/cert-manager/install.sh \
-    --email <your-email> \
-    --cf-token <cloudflare-api-token>
-
-# Use staging for testing
-bash infrastructure/cert-manager/install.sh \
-    --email <your-email> \
-    --cf-token <cloudflare-api-token> \
-    --staging
-```
-
-#### external-dns (Automated DNS Record Management)
-
-Syncs Gateway API hostnames to Cloudflare DNS automatically. Requires a separate Cloudflare API token (recommended for audit isolation from cert-manager).
-
-```bash
-# Deploy external-dns for junjie.pro zone
-bash infrastructure/external-dns/install.sh \
-    --cf-token <cloudflare-api-token>
-
-# Custom domain filter
-bash infrastructure/external-dns/install.sh \
-    --cf-token <cloudflare-api-token> \
-    --domain-filter example.com
-```
-
-#### metrics-server (Resource Metrics)
-
-Enables `kubectl top` and HPA (Horizontal Pod Autoscaler). Installed via Helm. Uses `--kubelet-insecure-tls` since kubeadm kubelet certs lack IP SANs.
-
-```bash
-# Deploy metrics-server
-bash infrastructure/metrics-server/install.sh
-
-# Dry-run
-bash infrastructure/metrics-server/install.sh --dry-run
-```
+- [`docs/control-plane-upgrade.md`](docs/control-plane-upgrade.md)
+- [`docs/worker-upgrade.md`](docs/worker-upgrade.md)
+- [`docs/gpu-worker-upgrade.md`](docs/gpu-worker-upgrade.md)
 
 ## Important Notes
 
@@ -332,148 +284,3 @@ bash infrastructure/metrics-server/install.sh --dry-run
 - **Hostname resolution**: If using a hostname for `--endpoint` (e.g. `control-plane.k8s.junjie.pro`), ensure it resolves on every node via DNS or `/etc/hosts`.
 - **NFSv4 + FCOS**: FCOS requires `fsid=0` on the NFS export to establish the NFSv4 pseudofilesystem root. Without it, NFSv4 clients silently fall back to NFSv3 because the server cannot traverse `/var` (separate bind-mounted filesystem on FCOS). With `fsid=0`, the export becomes the NFSv4 root — the CSI StorageClass must use `share: /` (not `/var/nfs-data`) since the mount path is relative to the pseudoroot. `subDir` subdirectories are created under the physical export path normally.
 
-## Reference
-
-### `bootstrap/vm-deploy.sh` Options
-
-| Option           | Default                    | Description            |
-|------------------|----------------------------|------------------------|
-| `--type`         | — (required)               | Node type: `k8s-node`, `k8s-gpu-node`, or `storage-server` |
-| `--name`         | — (required)               | Libvirt domain name (e.g. `k8s-control-plane-001`) |
-| `--cpus`         | — (required)               | vCPUs (e.g. `2`)       |
-| `--memory`       | — (required)               | Memory in MiB (e.g. `4096`) |
-| `--disk-size`    | — (required)               | Disk in GiB (e.g. `64`) |
-| `--image`        | auto-detect                | FCOS QCOW2 path        |
-| `--network`      | `virbr0`                   | Bridge name            |
-| `--os-variant`   | `fedora-coreos-stable`     | osinfo variant         |
-| `--no-blockpull` | off                        | Skip backing file pull |
-| `--dry-run`      | off                        | Print command only     |
-
-### `bootstrap/vm-image-upload.sh` Options
-
-| Option    | Default        | Description        |
-|-----------|----------------|--------------------|
-| `--pool`  | `default`      | Storage pool name  |
-| `--name`  | image basename | Volume name in pool |
-| `--format`| `raw`          | Volume format      |
-
-### `bootstrap/k8s-node/build.sh` Options
-
-| Option       | Description                    |
-|--------------|--------------------------------|
-| `--validate` | Validate template, no output   |
-
-### `bootstrap/kubeadm/init-control-plane.sh` Options
-
-| Option              | Required | Default                               | Description                         |
-|---------------------|----------|---------------------------------------|-------------------------------------|
-| `--endpoint`        | no       | `control-plane.k8s.junjie.pro:6443`   | API server endpoint                 |
-| `--config`          | no       | `bootstrap/kubeadm/kubeadm-init.yaml` | kubeadm config template             |
-| `--configure-kubectl`| no      | off                                   | Copy admin.conf to `~/.kube/config` |
-| `--install-cni`     | no       | off                                   | Run Cilium install after init       |
-| `--cni-version`     | no       | `1.19.4`                              | Cilium version                      |
-| `--pod-cidr`        | no       | `172.16.0.0/12`                       | Pod IPv4 CIDR                       |
-| `--dry-run`         | no       | off                                   | Print generated config and commands |
-
-### `bootstrap/kubeadm/join-worker.sh` Options
-
-| Option       | Required | Default                                        | Description        |
-|--------------|----------|------------------------------------------------|--------------------|
-| `--token`    | yes      | —                                              | Bootstrap token    |
-| `--hash`     | yes      | —                                              | CA cert hash       |
-| `--endpoint` | yes      | —                                              | API server endpoint|
-| `--config`   | no       | `bootstrap/kubeadm/kubeadm-join-worker.yaml`   | Join config template|
-| `--dry-run`  | no       | off                                            | Print generated config and commands |
-
-### `bootstrap/kubeadm/join-control-plane.sh` Options
-
-| Option              | Required | Default                                               | Description               |
-|---------------------|----------|-------------------------------------------------------|---------------------------|
-| `--token`           | yes      | —                                                     | Bootstrap token           |
-| `--hash`            | yes      | —                                                     | CA cert hash              |
-| `--endpoint`        | yes      | —                                                     | API server endpoint       |
-| `--certificate-key` | yes      | —                                                     | Certificate key           |
-| `--config`          | no       | `bootstrap/kubeadm/kubeadm-join-control-plane.yaml`   | Join config template      |
-| `--dry-run`         | no       | off                                                   | Print generated config and commands |
-
-### `infrastructure/network-cilium/install.sh` Options
-
-| Option      | Default              | Description                  |
-|-------------|----------------------|------------------------------|
-| `--version` | `1.19.4`             | Cilium version               |
-| `--cidr`    | `172.16.0.0/12`      | Pod IPv4 CIDR                |
-| `--lb-cidr` | auto-detect          | LB-IPAM pool CIDR            |
-| `--dry-run` | off                  | Print commands only          |
-
-### `infrastructure/storage-nfs/install.sh` Options
-
-| Option      | Default                           | Description              |
-|-------------|-----------------------------------|--------------------------|
-| `--server`  | `storage-001.k8s.junjie.pro`      | NFS server address       |
-| `--version` | `4.13.2`                          | CSI driver chart version |
-| `--dry-run` | off                               | Print command only       |
-
-### `infrastructure/gpu-operator/install.sh` Options
-
-| Option      | Default       | Description                  |
-|-------------|---------------|------------------------------|
-| `--version` | `v26.3.2`     | GPU Operator Helm chart ver  |
-| `--dry-run` | off           | Print command only           |
-
-### `infrastructure/metrics-server/install.sh` Options
-
-| Option      | Default   | Description                     |
-|-------------|-----------|---------------------------------|
-| `--version` | `3.13.1`  | metrics-server chart version    |
-| `--dry-run` | off       | Print command only              |
-
-### `infrastructure/cert-manager/install.sh` Options
-
-| Option       | Required | Description                                      |
-|--------------|----------|--------------------------------------------------|
-| `--email`    | yes      | Email for Let's Encrypt notifications             |
-| `--cf-token` | no*      | Cloudflare API token (unless secret exists)       |
-| `--version`  | no       | cert-manager Helm chart version (default: v1.20.2)|
-| `--staging`  | no       | Use Let's Encrypt staging environment             |
-| `--dry-run`  | no       | Print resources without applying                  |
-
-### `infrastructure/external-dns/install.sh` Options
-
-| Option             | Default      | Description                                  |
-|--------------------|--------------|----------------------------------------------|
-| `--cf-token`       | — (required) | Cloudflare API token                         |
-| `--domain-filter`  | `junjie.pro` | DNS zone to manage                           |
-| `--version`        | `v0.21.0`    | external-dns image tag                       |
-| `--dry-run`        | off          | Print resources without applying             |
-
-### `.env` Variables
-
-#### `bootstrap/k8s-node/.env`
-
-| Variable                     | Description                                               |
-|------------------------------|-----------------------------------------------------------|
-| `K8S_PASSWORD_HASH`          | `openssl passwd -6` output                                |
-| `K8S_SSH_PUB_KEY`            | SSH public key for core user                              |
-| `K8S_HOSTNAME`               | OS hostname (default: `k8s-control-plane-001`)            |
-| `K8S_PREINSTALLED_PACKAGES`  | rpm-ostree packages (default: `"cri-o1.36 kubernetes1.36"`) |
-
-#### `bootstrap/k8s-gpu-node/.env`
-
-| Variable                 | Description                                               |
-|--------------------------|-----------------------------------------------------------|
-| `K8S_PASSWORD_HASH`      | `openssl passwd -6` output                                |
-| `K8S_SSH_PUB_KEY`        | SSH public key for core user                              |
-| `K8S_HOSTNAME`           | OS hostname (default: `k8s-gpu-worker-001`)               |
-| `K8S_PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `"cri-o1.36 kubernetes1.36"`) |
-| `K8S_GPU_DEVICES`        | PCI addresses for passthrough (e.g. `"0000:01:00.0 0000:01:00.1"`) |
-| `K8S_VIRTIOFS_SOURCE`    | Host directory for virtiofs passthrough                   |
-| `K8S_VIRTIOFS_TARGET`    | Guest mount tag (default: `hf_hub`)                       |
-
-#### `bootstrap/storage-server/.env`
-
-| Variable                | Description                                      |
-|-------------------------|--------------------------------------------------|
-| `K8S_PASSWORD_HASH`     | `openssl passwd -6` output                       |
-| `K8S_SSH_PUB_KEY`       | SSH public key for core user                     |
-| `K8S_HOSTNAME`          | OS hostname (default: `k8s-storage-001`)         |
-| `K8S_PREINSTALLED_PACKAGES` | rpm-ostree packages (default: `nfs-utils`)       |
