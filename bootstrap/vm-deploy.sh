@@ -15,10 +15,10 @@ Supported types: k8s-node, k8s-gpu-node, storage-server
 
 Options:
   --type TYPE       Node type (k8s-node, k8s-gpu-node, or storage-server). Required.
-  --name NAME       VM name (default: k8s-control-plane-001)
-  --cpus N          Number of vCPUs (default: 2)
-  --memory MiB      Memory in MiB (default: 4096)
-  --disk-size GiB   Disk size in GiB (default: 64)
+  --name NAME       VM name (example: k8s-control-plane-001). Required.
+  --cpus N          Number of vCPUs (example: 2). Required.
+  --memory MiB      Memory in MiB (example: 4096). Required.
+  --disk-size GiB   Disk size in GiB (example: 64). Required.
   --image PATH      Path to FCOS QCOW2 backing image
   --network BRIDGE  Network bridge name (default: virbr0)
   --os-variant OS   osinfo variant (default: fedora-coreos-stable)
@@ -31,12 +31,12 @@ EOF
 
 # --- Defaults ---
 NODE_TYPE=""
-VM_NAME="k8s-control-plane-001"
-VM_CPUS="2"
-VM_MEMORY="4096"
+VM_NAME=""
+VM_CPUS=""
+VM_MEMORY=""
 VM_IMAGE=""
 VM_OS="fedora-coreos-stable"
-VM_DISK_SIZE="64"
+VM_DISK_SIZE=""
 VM_NETWORK="virbr0"
 DRY_RUN=false
 BLOCKPULL=true
@@ -68,6 +68,19 @@ fail() { echo "Error: $*" >&2; exit 1; }
 # --- Resolve type ---
 if [[ -z "$NODE_TYPE" ]]; then
     fail "--type is required (one of: k8s-node, k8s-gpu-node, storage-server)"
+fi
+
+if [[ -z "$VM_NAME" ]]; then
+    fail "--name is required (example: k8s-control-plane-001)"
+fi
+if [[ -z "$VM_CPUS" ]]; then
+    fail "--cpus is required (example: 2)"
+fi
+if [[ -z "$VM_MEMORY" ]]; then
+    fail "--memory is required (example: 4096)"
+fi
+if [[ -z "$VM_DISK_SIZE" ]]; then
+    fail "--disk-size is required (example: 64)"
 fi
 
 TYPE_DIR="${SCRIPT_DIR}/${NODE_TYPE}"

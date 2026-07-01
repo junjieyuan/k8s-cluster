@@ -146,17 +146,17 @@ bash bootstrap/storage-server/build.sh        # generates bootstrap/storage-serv
 
 ```bash
 # Control plane
-bash bootstrap/vm-deploy.sh --type k8s-node
-bash bootstrap/vm-deploy.sh --type k8s-node --cpus 4 --memory 8192
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-001 --cpus 2 --memory 4096 --disk-size 64
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-002 --cpus 4 --memory 8192 --disk-size 64
 
 # GPU worker (16 vCPUs / 32 GiB, with PCI passthrough + virtiofs)
-bash bootstrap/vm-deploy.sh --type k8s-gpu-node --name k8s-gpu-worker-001 --cpus 16 --memory 32768
+bash bootstrap/vm-deploy.sh --type k8s-gpu-node --name k8s-gpu-worker-001 --cpus 16 --memory 32768 --disk-size 64
 
 # Storage server
-bash bootstrap/vm-deploy.sh --type storage-server --name k8s-storage-001
+bash bootstrap/vm-deploy.sh --type storage-server --name k8s-storage-001 --cpus 2 --memory 4096 --disk-size 128
 
 # Dry-run
-bash bootstrap/vm-deploy.sh --type k8s-node --dry-run
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-001 --cpus 2 --memory 4096 --disk-size 64 --dry-run
 ```
 
 The VM boots, applies Ignition config (including rpm-ostree install of cri-o + kubernetes), and reboots. Wait ~2-3 minutes for the reboot to complete.
@@ -213,7 +213,7 @@ ssh core@<control-plane-ip> sudo kubeadm token create --print-join-command
 sed -i 's/^K8S_HOSTNAME=.*/K8S_HOSTNAME=k8s-worker-001/' bootstrap/k8s-node/.env
 
 # Provision worker VM
-bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-worker-001 --cpus 2 --memory 4096
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-worker-001 --cpus 2 --memory 4096 --disk-size 64
 ```
 
 **Inside the VM**, after reboot completes:
@@ -234,7 +234,7 @@ bash kubeadm/join-worker.sh \
 
 ```bash
 sed -i 's/^K8S_HOSTNAME=.*/K8S_HOSTNAME=k8s-control-plane-002/' bootstrap/k8s-node/.env
-bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-002 --cpus 4 --memory 8192
+bash bootstrap/vm-deploy.sh --type k8s-node --name k8s-control-plane-002 --cpus 4 --memory 8192 --disk-size 64
 ```
 
 > **Note**: Get the certificate key from an existing control plane node:
@@ -340,9 +340,9 @@ bash infrastructure/metrics-server/install.sh --dry-run
 |------------------|----------------------------|------------------------|
 | `--type`         | — (required)               | Node type: `k8s-node`, `k8s-gpu-node`, or `storage-server` |
 | `--name`         | — (required)               | Libvirt domain name (e.g. `k8s-control-plane-001`) |
-| `--cpus`         | `2`                        | vCPUs                  |
-| `--memory`       | `4096`                     | Memory in MiB          |
-| `--disk-size`    | `64`                       | Disk in GiB            |
+| `--cpus`         | — (required)               | vCPUs (e.g. `2`)       |
+| `--memory`       | — (required)               | Memory in MiB (e.g. `4096`) |
+| `--disk-size`    | — (required)               | Disk in GiB (e.g. `64`) |
 | `--image`        | auto-detect                | FCOS QCOW2 path        |
 | `--network`      | `virbr0`                   | Bridge name            |
 | `--os-variant`   | `fedora-coreos-stable`     | osinfo variant         |
