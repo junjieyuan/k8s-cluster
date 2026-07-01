@@ -16,9 +16,9 @@ Supported types: k8s-node, k8s-gpu-node, storage-server
 Options:
   --type TYPE       Node type (k8s-node, k8s-gpu-node, or storage-server). Required.
   --name NAME       VM name (example: k8s-control-plane-001). Required.
-  --cpus N          Number of vCPUs (example: 2). Required.
-  --memory MiB      Memory in MiB (example: 4096). Required.
-  --disk-size GiB   Disk size in GiB (example: 64). Required.
+  --cpus N          Number of vCPUs (default from .env: K8S_CPUS).
+  --memory MiB      Memory in MiB (default from .env: K8S_MEMORY).
+  --disk-size GiB   Disk size in GiB (default from .env: K8S_DISK_SIZE).
   --image PATH      Path to FCOS QCOW2 backing image
   --network BRIDGE  Network bridge name (default: virbr0)
   --os-variant OS   osinfo variant (default: fedora-coreos-stable)
@@ -73,15 +73,6 @@ fi
 if [[ -z "$VM_NAME" ]]; then
     fail "--name is required (example: k8s-control-plane-001)"
 fi
-if [[ -z "$VM_CPUS" ]]; then
-    fail "--cpus is required (example: 2)"
-fi
-if [[ -z "$VM_MEMORY" ]]; then
-    fail "--memory is required (example: 4096)"
-fi
-if [[ -z "$VM_DISK_SIZE" ]]; then
-    fail "--disk-size is required (example: 64)"
-fi
 
 TYPE_DIR="${SCRIPT_DIR}/${NODE_TYPE}"
 [[ -d "$TYPE_DIR" ]] || fail "Type directory not found: $TYPE_DIR"
@@ -92,6 +83,24 @@ DEPLOY_SCRIPT="${TYPE_DIR}/deploy.sh"
 # Source type-specific deploy functions
 # shellcheck disable=SC1090
 source "$DEPLOY_SCRIPT"
+
+# --- Hardware defaults from .env ---
+if [[ -f "$TYPE_DIR/.env" ]]; then
+    set -a; source "$TYPE_DIR/.env"; set +a
+fi
+VM_CPUS="${VM_CPUS:-${K8S_CPUS:-}}"
+VM_MEMORY="${VM_MEMORY:-${K8S_MEMORY:-}}"
+VM_DISK_SIZE="${VM_DISK_SIZE:-${K8S_DISK_SIZE:-}}"
+
+if [[ -z "$VM_CPUS" ]]; then
+    fail "--cpus is required (set K8S_CPUS in .env or pass --cpus)"
+fi
+if [[ -z "$VM_MEMORY" ]]; then
+    fail "--memory is required (set K8S_MEMORY in .env or pass --memory)"
+fi
+if [[ -z "$VM_DISK_SIZE" ]]; then
+    fail "--disk-size is required (set K8S_DISK_SIZE in .env or pass --disk-size)"
+fi
 
 # Check that required functions are defined
 for fn in deploy_build deploy_extra_args deploy_finalize; do
