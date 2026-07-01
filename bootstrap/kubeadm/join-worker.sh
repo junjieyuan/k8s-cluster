@@ -69,18 +69,6 @@ if $DRY_RUN; then
     exit 0
 fi
 
-# Open firewall ports if firewalld is active (ublue GPU workers have it; FCOS does not)
-if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
-    echo "Configuring firewalld for worker node..." >&2
-    firewall-cmd --permanent --add-service=kube-worker    # kubelet + NodePort TCP
-    firewall-cmd --permanent --add-port=30000-32767/udp   # NodePort UDP (not in kube-worker)
-    firewall-cmd --permanent --add-port=6081/udp          # Cilium Geneve overlay
-    firewall-cmd --permanent --add-port=8472/udp          # Cilium VXLAN overlay (fallback)
-    firewall-cmd --permanent --add-port=4240/tcp           # Cilium health checks
-    firewall-cmd --reload
-    echo "  [OK] firewalld worker ports configured" >&2
-fi
-
 echo "Joining Kubernetes cluster at $ENDPOINT..." >&2
 kubeadm join --config="$JOIN_CONFIG"
 
