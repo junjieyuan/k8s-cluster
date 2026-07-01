@@ -74,12 +74,20 @@ helm upgrade --install csi-driver-nfs "${CHART_NAME}" \
 echo "-> Creating/updating StorageClass (server: ${NFS_SERVER})..."
 export NFS_SERVER
 SC_YAML="$(mktemp)"
-trap "rm -f \"$SC_YAML\"" EXIT
+PV_YAML="$(mktemp)"
+trap "rm -f \"$SC_YAML\" \"$PV_YAML\"" EXIT
 envsubst '$NFS_SERVER' < "${SCRIPT_DIR}/storage-class.yaml" > "$SC_YAML"
 kubectl apply -f "$SC_YAML"
 rm -f "$SC_YAML"
+
+echo "-> Creating/updating models PV (server: ${NFS_SERVER})..."
+envsubst '$NFS_SERVER' < "${SCRIPT_DIR}/models-pv.yaml" > "$PV_YAML"
+kubectl apply -f "$PV_YAML"
+rm -f "$PV_YAML"
 
 echo ""
 echo "csi-driver-nfs deployed."
 echo "  Chart:    ${CHART_NAME} ${VERSION}"
 echo "  NFS server: ${NFS_SERVER}"
+echo ""
+echo "Models PV: kubectl get pv nfs-models"
