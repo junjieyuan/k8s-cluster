@@ -228,7 +228,15 @@ kubectl get nodes    # 确认只剩新节点 + workers
 sudo kubeadm reset -f
 ```
 
-VM 可销毁或重新部署为 worker。
+VM 不再使用后，在宿主机上彻底销毁：
+
+```bash
+sudo virsh destroy <old-node>
+sudo virsh undefine --domain <old-node> \
+  --managed-save --remove-all-storage \
+  --snapshots-metadata --checkpoints-metadata \
+  --nvram --tpm
+```
 
 ### 8b. 集群验证
 

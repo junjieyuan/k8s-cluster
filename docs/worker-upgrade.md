@@ -124,7 +124,15 @@ SSH 到旧节点：
 sudo kubeadm reset -f
 ```
 
-旧 VM 可销毁或保留他用。
+旧 VM 不再使用后，在宿主机上彻底销毁：
+
+```bash
+sudo virsh destroy <old-node>
+sudo virsh undefine --domain <old-node> \
+  --managed-save --remove-all-storage \
+  --snapshots-metadata --checkpoints-metadata \
+  --nvram --tpm
+```
 
 ---
 
