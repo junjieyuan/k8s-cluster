@@ -13,6 +13,6 @@ deploy_extra_args() {
     true
 }
 
-deploy_finalize() {
-    true
+deploy_prepare_domain_xml() {
+    :
 }

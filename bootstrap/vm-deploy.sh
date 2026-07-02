@@ -106,7 +106,7 @@ if [[ -z "$VM_DISK_SIZE" ]]; then
 fi
 
 # Check that required functions are defined
-for fn in deploy_build deploy_extra_args deploy_finalize; do
+for fn in deploy_build deploy_extra_args deploy_prepare_domain_xml; do
     if ! declare -F "$fn" >/dev/null 2>&1; then
         fail "deploy.sh must define function: $fn"
     fi
@@ -139,16 +139,21 @@ virt-install \\
     --memory=$VM_MEMORY \\
     --os-variant=$VM_OS \\
     --import \\
-    --disk=size=$VM_DISK_SIZE,backing_store=$dry_image \\
+    --disk size=$VM_DISK_SIZE,backing_store=$dry_image \\
     --graphics=none \\
     --network bridge=$VM_NETWORK \\
     --sysinfo type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file=$IGNITION_FILE \\
-    --noautoconsole$(deploy_extra_args | sed 's/^/ \\\n    /')
+    --cpu host-passthrough \\
+    --noautoconsole \\
+    --print-xml$(deploy_extra_args | sed 's/^/ \\\n    /') > ${TYPE_DIR}/${VM_NAME}.xml.tmp
+# deploy_prepare_domain_xml ${TYPE_DIR}/${VM_NAME}.xml.tmp  (type-specific XML modifications)
+virsh define ${TYPE_DIR}/${VM_NAME}.xml.tmp
+virsh start $VM_NAME
+virsh autostart $VM_NAME
+virsh dumpxml $VM_NAME | sed '/<sysinfo/,/<\/sysinfo>/d' | virsh define /dev/stdin
+rm -f ${TYPE_DIR}/${VM_NAME}.xml.tmp
 DRYEOF
     $BLOCKPULL && echo "virsh blockpull $VM_NAME vda --wait --verbose" >&2
-    echo "virsh autostart $VM_NAME" >&2
-    echo "virsh dumpxml $VM_NAME | sed '/<sysinfo/,/<\/sysinfo>/d' | virsh define /dev/stdin" >&2
-    echo "[deploy_finalize $VM_NAME]" >&2
     exit 0
 fi
 
@@ -173,22 +178,30 @@ command -v virt-install >/dev/null 2>&1 || fail "virt-install not found (install
 command -v virsh >/dev/null 2>&1       || fail "virsh not found (install libvirt-client)"
 
 if virsh dominfo "$VM_NAME" &>/dev/null; then
-    fail "VM '$VM_NAME' already exists. Remove it with: sudo virsh destroy $VM_NAME && sudo virsh undefine --domain $VM_NAME --managed-save --remove-all-storage --snapshots-metadata --checkpoints-metadata --nvram --tpm"
+    fail "VM '$VM_NAME' already exists. Remove it with: sudo virsh destroy $VM_NAME && sudo virsh undefine --domain $VM_NAME --managed-save --nvram --tpm && sudo virsh vol-delete --pool default ${VM_NAME}.qcow2"
 fi
 
 # --- Provision VM ---
 echo "Provisioning VM '$VM_NAME'..." >&2
 
+tmp_xml="${TYPE_DIR}/${VM_NAME}.xml.tmp"
+
 cleanup() {
     echo "Cleaning up failed VM '$VM_NAME'..." >&2
     virsh destroy "$VM_NAME" 2>/dev/null || true
-    virsh undefine --domain "$VM_NAME" --managed-save --remove-all-storage --snapshots-metadata --checkpoints-metadata --nvram --tpm 2>/dev/null || true
+    virsh undefine --domain "$VM_NAME" --managed-save --nvram --tpm 2>/dev/null || true
+    virsh vol-delete --pool default "${VM_NAME}.qcow2" 2>/dev/null || true
+    rm -f "$tmp_xml"
 }
 trap cleanup ERR
 
 # Read extra args into an array safely
 readarray -t EXTRA_ARGS < <(deploy_extra_args)
 
+# 1. Generate domain XML and create overlay disk.
+# virt-install --print-xml creates storage (overlay QCOW2) but does NOT
+# define or start the domain — giving us a window to modify the XML.
+echo "Generating domain XML and creating overlay disk..." >&2
 virt-install \
     --connect="qemu:///system" \
     --name="$VM_NAME" \
@@ -196,16 +209,30 @@ virt-install \
     --memory="$VM_MEMORY" \
     --os-variant="$VM_OS" \
     --import \
-    --disk="size=$VM_DISK_SIZE,backing_store=$VM_IMAGE" \
+    --disk "size=$VM_DISK_SIZE,backing_store=$VM_IMAGE" \
     --graphics=none \
-    --network bridge="$VM_NETWORK" \
-    --sysinfo type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file="$IGNITION_FILE" \
+    --network "bridge=$VM_NETWORK" \
+    --sysinfo "type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file=$IGNITION_FILE" \
+    --cpu host-passthrough \
     --noautoconsole \
-    "${EXTRA_ARGS[@]}"
+    --print-xml \
+    "${EXTRA_ARGS[@]}" > "$tmp_xml"
 
-# After virt-install succeeds, switch to a lighter error handler.
-# The VM exists — don't destroy it on failure, just warn.
-trap 'echo "ERROR: VM $VM_NAME provisioning failed after virt-install." >&2; echo "  Check: sudo virsh dominfo $VM_NAME" >&2; echo "  Manual cleanup if needed: sudo virsh destroy $VM_NAME && sudo virsh undefine --domain $VM_NAME --managed-save --remove-all-storage --snapshots-metadata --checkpoints-metadata --nvram --tpm" >&2' ERR
+# 2. Type-specific XML modifications before first boot
+echo "Applying type-specific XML modifications..." >&2
+deploy_prepare_domain_xml "$tmp_xml"
+
+# 3. Define and start the VM
+echo "Defining VM..." >&2
+virsh define "$tmp_xml" >/dev/null
+rm -f "$tmp_xml"
+
+echo "Starting VM..." >&2
+virsh start "$VM_NAME" >/dev/null
+
+# After VM starts successfully, switch to a lighter error handler.
+# The VM is running — don't destroy it on failure, just warn.
+trap 'echo "ERROR: VM $VM_NAME provisioning failed after VM start." >&2; echo "  Check: sudo virsh dominfo $VM_NAME" >&2; echo "  Manual cleanup if needed: sudo virsh destroy $VM_NAME && sudo virsh undefine --domain $VM_NAME --managed-save --nvram --tpm && sudo virsh vol-delete --pool default ${VM_NAME}.qcow2" >&2' ERR
 
 echo "VM '$VM_NAME' provisioned successfully." >&2
 
@@ -222,9 +249,6 @@ if $BLOCKPULL; then
     virsh blockpull "$VM_NAME" vda --wait --verbose
     echo "Blockpull complete." >&2
 fi
-
-# --- Type-specific finalization ---
-deploy_finalize "$VM_NAME"
 
 # All provisioning steps completed — clear the error trap
 trap - ERR

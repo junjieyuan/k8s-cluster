@@ -47,9 +47,13 @@ _pci_to_hostdev_xml() {
     </hostdev>' "$((16#$domain))" "$((16#$bus))" "$((16#$slot))" "$((16#$fn))"
 }
 
-deploy_finalize() {
-    local vm_name="$1"
-    local need_destroy=false
+# deploy_prepare_domain_xml(xml_file)
+# Called by vm-deploy.sh BEFORE the VM is defined/started.
+# Modifies the domain XML in-place with GPU passthrough, virtiofs,
+# and memory backing (required for VFIO).
+# cpu=host-passthrough is set via --cpu flag in vm-deploy.sh.
+deploy_prepare_domain_xml() {
+    local xml_file="$1"
 
     # Load .env for GPU-specific vars
     local env_file="${TYPE_DIR}/.env"
@@ -57,70 +61,7 @@ deploy_finalize() {
         set -a; source "$env_file"; set +a
     fi
 
-    # Wait for the 3-phase autorebase chain to complete.
-    # gpu-worker.bu.tmpl creates /etc/ucore-autorebase/k8s as the final step
-    # of phase 3 (k8s-packages-install.service). Until this file exists, the
-    # VM may be mid-rebase and we must not destroy it.
-    local max_wait=600  # 10 minutes
-    local waited=0
-    local interval=10
-    echo "Waiting for autorebase chain to complete (up to ${max_wait}s)..." >&2
-    while [[ $waited -lt $max_wait ]]; do
-        local domstate
-        domstate="$(virsh domstate "$vm_name" 2>/dev/null || echo "not found")"
-        if [[ "$domstate" == "running" ]]; then
-            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
-                core@"$vm_name" "test -f /etc/ucore-autorebase/k8s" 2>/dev/null; then
-                echo "  [OK] Autorebase chain complete (k8s marker found)" >&2
-                break
-            fi
-        fi
-        sleep "$interval"
-        waited=$((waited + interval))
-    done
-
-    if [[ $waited -ge $max_wait ]]; then
-        echo "Warning: timed out waiting for autorebase chain. VM may be misconfigured." >&2
-        echo "Check: ssh core@${vm_name} 'ls /etc/ucore-autorebase/'" >&2
-    fi
-
-    local state
-    state="$(virsh domstate "$vm_name" 2>/dev/null || echo "not found")"
-
-    if [[ "$state" != "running" ]] && [[ "$state" != "shut off" ]]; then
-        echo "Warning: unexpected VM state '$state', skipping GPU configuration" >&2
-        return 0
-    fi
-
-    if [[ "$state" == "running" ]]; then
-        need_destroy=true
-        echo "Stopping $vm_name to apply GPU configuration..." >&2
-        virsh destroy "$vm_name"
-    fi
-
-    # On failure, try to restart the VM in its current state
-    _gpu_cleanup() {
-        if $need_destroy; then
-            echo "GPU config failed, restarting $vm_name in original state..." >&2
-            virsh start "$vm_name" >/dev/null 2>&1 || true
-        fi
-    }
-    trap _gpu_cleanup ERR
-
-    # --- Build complete domain XML in one pass ---
-    local tmp_xml
-    tmp_xml="$(mktemp)"
-    virsh dumpxml "$vm_name" > "$tmp_xml"
-
-    # 1. cpu: host-passthrough (required for NVIDIA driver to see host features)
-    # Handle both self-closing <cpu .../> and multi-line <cpu>...</cpu>
-    sed -i 's|<cpu [^>]*/>|<cpu mode="host-passthrough" check="none" migratable="on"/>|' "$tmp_xml"
-    # Only apply the multi-line replacement if a non-self-closing <cpu> tag remains
-    if grep -q '<cpu[^/]*>' "$tmp_xml"; then
-        sed -i '/<cpu /,/<\/cpu>/c\  <cpu mode="host-passthrough" check="none" migratable="on"/>' "$tmp_xml"
-    fi
-
-    # 2. memoryBacking: memfd + shared (required for VFIO passthrough)
+    # 1. memoryBacking: memfd + shared (required for VFIO passthrough)
     local mem_snippet
     mem_snippet="$(mktemp)"
     cat > "$mem_snippet" <<'XMLEOF'
@@ -129,10 +70,10 @@ deploy_finalize() {
     <access mode='shared'/>
   </memoryBacking>
 XMLEOF
-    sed -i "/<\/currentMemory>/r $mem_snippet" "$tmp_xml"
+    sed -i "/<\/currentMemory>/r $mem_snippet" "$xml_file"
     rm -f "$mem_snippet"
 
-    # 3. Build device snippet: hostdevs + virtiofs + watchdog
+    # 2. Build device snippet: hostdevs + virtiofs
     local dev_snippet
     dev_snippet="$(mktemp)"
 
@@ -155,34 +96,19 @@ XMLEOF
 XMLEOF
     fi
 
-    cat >> "$dev_snippet" <<'XMLEOF'
-    <watchdog model='itco' action='reset'/>
-XMLEOF
-
     # Insert device snippet before </devices>
     local line_no
-    line_no=$(grep -n '</devices>' "$tmp_xml" | head -1 | cut -d: -f1)
+    line_no=$(grep -n '</devices>' "$xml_file" | head -1 | cut -d: -f1)
     {
-        head -n $((line_no - 1)) "$tmp_xml"
+        head -n $((line_no - 1)) "$xml_file"
         cat "$dev_snippet"
-        tail -n +$line_no "$tmp_xml"
-    } > "${tmp_xml}.new"
-    mv "${tmp_xml}.new" "$tmp_xml"
+        tail -n +$line_no "$xml_file"
+    } > "${xml_file}.new"
+    mv "${xml_file}.new" "$xml_file"
+    rm -f "$dev_snippet"
 
-    # 4. Apply the modified XML
-    virsh define "$tmp_xml" >/dev/null
-    rm -f "$tmp_xml" "$dev_snippet"
-    trap - ERR
-
-    # --- Summary ---
-    echo "[OK] memory backing configured (memfd+shared)" >&2
-    echo "[OK] cpu set to host-passthrough" >&2
-    [[ -n "${K8S_GPU_DEVICES:-}" ]] && echo "[OK] GPU passthrough: ${K8S_GPU_DEVICES}" >&2
-    [[ -n "${K8S_VIRTIOFS_SOURCE:-}" ]] && echo "[OK] virtiofs: ${K8S_VIRTIOFS_SOURCE} -> ${K8S_VIRTIOFS_TARGET:-hf_hub}" >&2
-
-    # --- Restart if we stopped it ---
-    if $need_destroy; then
-        echo "Starting $vm_name with GPU configuration..." >&2
-        virsh start "$vm_name" >/dev/null
-    fi
+    # Summary
+    echo "  [OK] memory backing configured (memfd+shared)" >&2
+    [[ -n "${K8S_GPU_DEVICES:-}" ]] && echo "  [OK] GPU passthrough: ${K8S_GPU_DEVICES}" >&2
+    [[ -n "${K8S_VIRTIOFS_SOURCE:-}" ]] && echo "  [OK] virtiofs: ${K8S_VIRTIOFS_SOURCE} -> ${K8S_VIRTIOFS_TARGET:-hf_hub}" >&2
 }
