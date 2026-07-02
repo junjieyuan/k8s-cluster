@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="gpu-operator"
 CHART_REPO="https://helm.ngc.nvidia.com/nvidia"
 CHART_NAME="nvidia/gpu-operator"
-GPU_OPERATOR_VERSION="${GPU_OPERATOR_VERSION:-v26.3.2}"
+GPU_OPERATOR_VERSION="${GPU_OPERATOR_VERSION:-v26.3.3}"
 
 usage() {
     cat <<'EOF'
@@ -17,7 +17,7 @@ Deploys Node Feature Discovery (NFD), container toolkit, and device plugin.
 Uses host NVIDIA driver (containerized driver disabled) and CDI for device injection.
 
 Options:
-  --version VERSION   GPU Operator Helm chart version (default: v26.3.2)
+  --version VERSION   GPU Operator Helm chart version (default: v26.3.3)
   --dry-run           Print commands without executing
   --help              Show this help
 EOF
