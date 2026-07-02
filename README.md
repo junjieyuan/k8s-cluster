@@ -174,7 +174,7 @@ For k8s-gpu-node type, the Ignition config follows [ublue's autorebase pattern](
 2. **Signed rebase**: switch to signed image for verified updates → reboot
 3. **Install k8s**: layer cri-o + kubernetes on uCore → reboot
 
-No manual steps needed — after all reboots (~6-7 min), the VM is running signed uCore NVIDIA with k8s installed. The deploy script then stops the VM, attaches GPU PCI devices, virtiofs, sets CPU to host-passthrough and memory backing, then restarts.
+No manual steps needed — after all reboots (~6-7 min), the VM is running signed uCore NVIDIA with k8s installed. GPU passthrough, virtiofs, host-passthrough CPU, and memory backing are all configured in the domain XML before the VM ever boots.
 
 ### Inside the VM
 

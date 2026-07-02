@@ -23,7 +23,7 @@
 ## 与普通 worker 的主要区别
 
 - 使用 `k8s-gpu-node` 类型部署，Ignition 走 uCore 自动 rebase（3 次重启）
-- `deploy_finalize` 自动配置 GPU PCI 直通、host-passthrough CPU、memfd 共享内存、virtiofs
+- 部署脚本自动在 VM 首次启动前配置 GPU PCI 直通、host-passthrough CPU、memfd 共享内存、virtiofs
 - **必须先销毁旧 VM 释放 GPU，再部署新 VM**——无法并行替换
 - 加入集群后需验证 NVIDIA GPU Operator 在新节点上正常工作
 - GPU 工作负载在 Step 3 到 Step 5 之间完全不可用
@@ -108,10 +108,10 @@ bash bootstrap/vm-deploy.sh --type k8s-gpu-node \
 
 部署流程：
 
-1. VM 启动，Ignition 注入
-2. uCore 自动 rebase（unsigned → signed），两次重启
-3. 安装 k8s 包（cri-o + kubernetes），一次重启
-4. `deploy_finalize`：停止 VM → 绑定 GPU PCI 设备、virtiofs、CPU host-passthrough、memfd 共享内存 → 重启 VM
+1. 部署脚本生成 domain XML 并创建 overlay 磁盘
+2. 在 XML 中注入 GPU 直通、virtiofs、CPU host-passthrough、memfd 共享内存
+3. VM 首次启动，GPU 已在 PCI 总线上，Ignition 注入
+4. uCore 自动 rebase（unsigned → signed）+ 安装 k8s 包，3 次重启
 
 全程约 6-7 分钟，无需手动干预。
 
@@ -219,7 +219,7 @@ kubectl delete pod <stuck-pod> -n <namespace> --force --grace-period=0
 
 ### 新 VM GPU 绑定失败：设备被占用
 
-如果 `deploy_finalize` 报 GPU PCI 设备已被占用：
+如果 VM 部署时 GPU PCI 设备已被占用：
 
 ```bash
 # 确认旧 VM 已完全销毁
