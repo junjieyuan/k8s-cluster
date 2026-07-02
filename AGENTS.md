@@ -136,8 +136,9 @@ All types follow the same pattern:
 substitutes only the variables the template needs — not everything in `.env`.
 
 **GPU workers** additionally: uCore autorebase (2 reboots), k8s package
-install (1 reboot), then `deploy_finalize` attaches GPU PCI devices +
-virtiofs, sets `cpu=host-passthrough` + `memoryBacking`.
+install (1 reboot). GPU PCI devices, virtiofs, `cpu=host-passthrough`, and
+`memoryBacking` are configured in the domain XML before first boot via
+`deploy_prepare_domain_xml` — no post-boot reconfiguration needed.
 
 ### SELinux enforcing=0 on k8s nodes
 
@@ -196,8 +197,7 @@ placeholders), and TLS certificates.
 
 ## Commit conventions
 
-- Atomic commits with conventional prefixes: `feat:`, `fix:`, `refactor:`, `docs:`
-- No `chore:` or `style:` — keep it semantic
+- Atomic commits with conventional prefixes: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
 - Each commit changes one logical concern
 
 ## Image provisioning order
@@ -207,8 +207,8 @@ placeholders), and TLS certificates.
 3. `bootstrap/vm-deploy.sh --type <type>` → VM
 
 After provisioning, `vm-deploy.sh` removes the fwcfg Ignition from the domain
-XML and enables autostart. For GPU nodes, `deploy_finalize` additionally
-attaches PCI devices, virtiofs, and configures CPU/memory backing.
+XML and enables autostart. For GPU nodes, `deploy_prepare_domain_xml` attaches PCI devices, virtiofs,
+and configures CPU/memory backing in the domain XML before first boot.
 
 ## Reference docs
 
