@@ -1,4 +1,20 @@
+# Secrets / credentials
 .env
 *.ign
+
+# Kustomize helmCharts cache
 charts/
 
+# Editor / OS
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Claude Code local overrides
+.claude/settings.local.json
+.claude/.cc-writes/
