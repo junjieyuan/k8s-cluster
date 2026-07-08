@@ -16,12 +16,12 @@ spec:
       serviceAccountName: external-dns
       containers:
         - name: external-dns
-          image: registry.k8s.io/external-dns/external-dns:${VERSION}
+          image: registry.k8s.io/external-dns/external-dns
           args:
             - --provider=cloudflare
             - --source=gateway-httproute
             - --source=gateway-grpcroute
-            - --domain-filter=${DOMAIN_FILTER}
+            - --domain-filter=junjie.pro
             # sync: creates AND deletes records. Safe for greenfield zones;
             # for brownfield (existing DNS records), change to upsert-only.
             - --policy=sync
