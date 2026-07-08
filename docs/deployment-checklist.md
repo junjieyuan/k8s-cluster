@@ -25,7 +25,6 @@ This applies to new components and upgrades alike.
 ## Kustomize build
 
 - [ ] `kubectl kustomize --enable-helm <dir>/` succeeds without errors.
-  For plain kustomize: `kubectl kustomize <dir>/`.
 - [ ] `kubectl diff -f -` shows only expected changes (new hook resources,
   secret regeneration). No unexpected deletions or spec changes on existing
   resources.
@@ -34,9 +33,8 @@ This applies to new components and upgrades alike.
 
 - [ ] Re-running the deploy command produces a no-op: no pods restart,
   no resources created or changed.
-  - Plain kustomize: `kubectl apply -k <dir>/` shows `unchanged`.
-  - helmCharts: `kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`
-    shows only annotation patches.
+  `kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`
+  shows only annotation patches on existing resources.
 
 ## Post-deploy verification
 

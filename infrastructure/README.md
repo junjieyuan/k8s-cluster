@@ -1,8 +1,8 @@
 # Infrastructure
 
 Cluster-level services deployed on the control plane via Kustomize.
-Each component has a `kustomization.yaml` — use `--help` or see the
-kustomization for version/configuration details.
+Each component has a `kustomization.yaml` — see it for version and
+configuration details.
 
 ## Components
 
@@ -28,7 +28,7 @@ Requires `.env` with Cloudflare API token (copy from `.env.example`).
 ### external-dns
 
 ```bash
-kubectl apply -k infrastructure/external-dns/
+kubectl kustomize --enable-helm infrastructure/external-dns/ | kubectl apply -f -
 ```
 
 Requires `.env` with Cloudflare API token (copy from `.env.example`).
