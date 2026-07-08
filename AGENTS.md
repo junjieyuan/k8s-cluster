@@ -28,8 +28,10 @@ idempotent — re-running them should result in no-op.
   (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level
   tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by
   `infrastructure/network-cilium/install.sh` if missing.
-- **Helm** is used for cluster-level operators where `values.yaml` provides
-  clear advantage. Infrastructure components like Cilium use `cilium` CLI.
+- **Helm** is used **only** via the Kustomize `helmCharts` generator
+  (`kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`), never
+  `helm install` directly. Exception: Cilium uses `cilium` CLI for its
+  complex multi-step setup (CRD patching, L2 announcement config).
 
 ## Component versions
 
@@ -72,10 +74,11 @@ bootstrap/<type>/
 │   └── <type>.bu.tmpl         # Butane template (FCOS config)
 
 infrastructure/<component>/
-│   ├── install.sh             # Entry point (Helm upgrade --install or kubectl apply)
-│   ├── values.yaml            # Helm values (only if using Helm)
-│   ├── *.yaml                 # K8s resource manifests (kubectl-apply components)
-│   └── secret.yaml.example    # Secret template (only if component needs credentials)
+│   ├── kustomization.yaml      # helmCharts (preferred) or resources + secretGenerator
+│   ├── values.yaml             # Helm chart values (helmCharts components)
+│   ├── namespace.yaml          # Namespace definition (unless using kube-system)
+│   ├── *.yaml                  # K8s resource manifests (no ${VAR} placeholders)
+│   └── .env.example            # Secret template (components needing credentials)
 
 docs/                           # Detailed reference: upgrade guides, known issues,
 │                               # checklists, component setup notes
@@ -102,9 +105,8 @@ to locate their resources. They can be run from any directory.
         bootstrap/vm-deploy.sh
 [vm]    bootstrap/kubeadm/init-node.sh, bootstrap/kubeadm/init-control-plane.sh,
         bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
-[vm]    infrastructure/network-cilium/install.sh, infrastructure/storage-nfs/install.sh,
-        infrastructure/gpu-operator/install.sh, infrastructure/cert-manager/install.sh,
-        infrastructure/external-dns/install.sh, infrastructure/metrics-server/install.sh
+[vm]    infrastructure/network-cilium/install.sh  (cilium CLI — complex setup)
+[vm]    infrastructure/*/ (all other components — kubectl kustomize --enable-helm)
 ```
 
 Host scripts provision VMs; VM scripts run inside the guest. Infrastructure
@@ -122,6 +124,33 @@ that never need root:
 
 `infrastructure/network-cilium/install.sh` only escalates when installing the
 `cilium` CLI binary to `/usr/local/bin`.
+
+## Infrastructure deployment
+
+All infrastructure components (except Cilium) use Kustomize with the
+`helmCharts` generator. No `helm install` directly — Helm charts are
+declared in `kustomization.yaml` and applied via:
+
+```bash
+# Plain kustomize (no Helm charts)
+kubectl apply -k infrastructure/external-dns/
+
+# helmCharts components (requires --enable-helm)
+kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f -
+kubectl kustomize --enable-helm infrastructure/gpu-operator/ | kubectl apply -f -
+kubectl kustomize --enable-helm infrastructure/metrics-server/ | kubectl apply -f -
+kubectl kustomize --enable-helm infrastructure/storage-nfs/ | kubectl apply -f -
+```
+
+Secrets use `secretGenerator` with `.env` files (real values gitignored,
+`.env.example` committed as template). For CRD custom fields that reference
+secret names (e.g. `apiTokenSecretRef.name`), use
+`generatorOptions.disableNameSuffixHash: true` since kustomize cannot
+auto-rewrite CRD-level secret references.
+
+Version pinning:
+- `helmCharts`: `helmCharts[].version` in `kustomization.yaml`
+- Plain YAML: `images.newTag` in `kustomization.yaml`
 
 ## Butane/Ignition flow
 

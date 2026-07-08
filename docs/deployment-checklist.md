@@ -7,12 +7,11 @@ This applies to new components and upgrades alike.
 
 ## Version consistency
 
-- [ ] `usage()` help text, script default variable, Helm chart version, and
-  container image tag all reference the same version.
-- [ ] Version is overridable via both `--version` CLI flag and an environment
-  variable (e.g. `METRICS_SERVER_VERSION="${METRICS_SERVER_VERSION:-3.13.1}"`).
-  Use component-specific env var names to avoid collisions.
-- [ ] `helm search repo <chart> --versions` confirms this is the latest stable.
+- [ ] Version is declared in `kustomization.yaml`:
+  - `helmCharts` components: `helmCharts[].version` field
+  - Plain YAML components: `images.newTag` field
+- [ ] `helm search repo <chart> --versions` (or upstream release page)
+  confirms this is the latest stable.
 
 ## values.yaml
 
@@ -23,41 +22,40 @@ This applies to new components and upgrades alike.
 - [ ] Prefer `args` (append) over overriding `defaultArgs` (replace) so chart
   defaults pass through transparently.
 
-## Helm upgrade command
+## Kustomize build
 
-- [ ] Always uses `--wait --timeout 5m`. Without it, the script exits before
-  pods are ready and hides startup failures.
-- [ ] `--dry-run` output is an exact copy of the real command, including all
-  flags, quotes, and variable references. No prose summaries — the user must
-  be able to copy-paste the dry-run output and run it manually.
+- [ ] `kubectl kustomize --enable-helm <dir>/` succeeds without errors.
+  For plain kustomize: `kubectl kustomize <dir>/`.
+- [ ] `kubectl diff -f -` shows only expected changes (new hook resources,
+  secret regeneration). No unexpected deletions or spec changes on existing
+  resources.
 
 ## Idempotency
 
-- [ ] Re-running `install.sh` produces a no-op: `helm upgrade --install`
-  reports no changes, no pods restart.
+- [ ] Re-running the deploy command produces a no-op: no pods restart,
+  no resources created or changed.
+  - Plain kustomize: `kubectl apply -k <dir>/` shows `unchanged`.
+  - helmCharts: `kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`
+    shows only annotation patches.
 
 ## Post-deploy verification
 
 - [ ] `kubectl logs -n <ns> deployment/<name>` shows no E/F-level errors.
 - [ ] Pod status is `Running` with all containers `Ready`.
-- [ ] The script's final summary echoes the version that was actually deployed.
 - [ ] `kubectl top nodes` / `kubectl top pods -A` works if metrics-server was
   part of the change.
 
-## Helm release sync
+## Secret management
 
-- [ ] `helm -n <ns> get values <release> -a` (computed values) matches the
-  intent of the local `values.yaml`. No stale keys from previous revisions.
-- [ ] `kubectl -n <ns> get deploy <name> -o jsonpath='{.spec.template.spec.containers[0].image}'`
-  matches the chart's app version.
+- [ ] `.env` exists with real values (gitignored).
+- [ ] `.env.example` committed with placeholder values as template.
+- [ ] `secretGenerator` in `kustomization.yaml` references the correct `.env` keys.
+- [ ] For CRD-level secret references (e.g. `apiTokenSecretRef.name`),
+  `generatorOptions.disableNameSuffixHash: true` is set since kustomize
+  cannot auto-rewrite custom resource fields.
 
-## Script conventions
+## Cilium (cilium CLI — not kustomize)
 
-- [ ] `SCRIPT_DIR` pattern used for locating sibling files.
-- [ ] Helm repo detection uses structured output:
-  `helm repo list -o yaml 2>/dev/null | grep -q "<repo-url>"` — never parse
-  the human-readable table with `grep '^name\b'`.
-- [ ] `helm repo update <name>` runs after `helm repo add`, not only in the
-  already-exists branch.
-- [ ] Clustered changes (e.g. Cilium operator restart after config patch) use
+- [ ] Clustered changes (e.g. operator restart after config patch) use
   `kubectl rollout restart` and wait for availability.
+- [ ] Gateway API CRD version matches what Cilium supports.

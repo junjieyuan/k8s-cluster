@@ -1,62 +1,55 @@
 # Infrastructure
 
-Cluster-level services deployed on the control plane via `kubectl`/`helm`.
-Each component has an `install.sh` entry point — run with `--help` for full
-options. All scripts can be invoked from any directory.
+Cluster-level services deployed on the control plane via Kustomize.
+Each component has a `kustomization.yaml` — use `--help` or see the
+kustomization for version/configuration details.
 
 ## Components
 
 ### network-cilium
 
 Cilium CNI with Gateway API + kube-proxy replacement. Installs Gateway API
-CRDs, creates LB-IPAM pool, and enables L2 announcements.
+CRDs, creates LB-IPAM pool, and enables L2 announcements. Uses `cilium` CLI
+(not kustomize) due to complex multi-step setup.
 
 ```bash
 bash infrastructure/network-cilium/install.sh
 bash infrastructure/network-cilium/install.sh --version 1.19.4 --cidr 172.16.0.0/12
 ```
 
-### storage-nfs
-
-csi-driver-nfs via Helm. Requires an NFS server with `fsid=0` export (FCOS
-NFSv4 requirement — see README "Important Notes").
-
-```bash
-bash infrastructure/storage-nfs/install.sh --server storage-001.k8s.junjie.pro
-```
-
-### gpu-operator
-
-NVIDIA GPU Operator via Helm. Deploys NFD, container toolkit, and device
-plugin with host driver reuse + CDI. Requires GPU worker nodes joined to the
-cluster.
-
-```bash
-bash infrastructure/gpu-operator/install.sh
-```
-
 ### cert-manager
 
-cert-manager via Helm with Let's Encrypt DNS-01 ClusterIssuers
-(Cloudflare). Supports wildcard certificates.
-
 ```bash
-bash infrastructure/cert-manager/install.sh --email <email> --cf-token <token>
-bash infrastructure/cert-manager/install.sh --email <email> --cf-token <token> --staging
+kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f -
 ```
+
+Requires `.env` with Cloudflare API token (copy from `.env.example`).
+Default ClusterIssuer targets Let's Encrypt production. To use staging,
+swap `clusterissuer.yaml` for `clusterissuer-staging.yaml` in
+`kustomization.yaml` resources.
 
 ### external-dns
 
-Syncs Gateway API hostnames to Cloudflare DNS.
+```bash
+kubectl apply -k infrastructure/external-dns/
+```
+
+Requires `.env` with Cloudflare API token (copy from `.env.example`).
+
+### gpu-operator
 
 ```bash
-bash infrastructure/external-dns/install.sh --cf-token <token>
+kubectl kustomize --enable-helm infrastructure/gpu-operator/ | kubectl apply -f -
 ```
 
 ### metrics-server
 
-Resource metrics for `kubectl top` and HPA via Helm.
+```bash
+kubectl kustomize --enable-helm infrastructure/metrics-server/ | kubectl apply -f -
+```
+
+### storage-nfs
 
 ```bash
-bash infrastructure/metrics-server/install.sh
+kubectl kustomize --enable-helm infrastructure/storage-nfs/ | kubectl apply -f -
 ```
