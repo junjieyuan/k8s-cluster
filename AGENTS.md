@@ -37,8 +37,9 @@ idempotent — re-running them should result in no-op.
 
 - **Always target latest stable** — pin explicit versions, check upstream
   before deployment or upgrade.
-- **Source of truth** — version defaults live in each script's `usage()` or
-  `.env.example`. This file does not duplicate them — they drift.
+- **Source of truth** — version defaults live in each script's `usage()`,
+  `.env.example`, or `kustomization.yaml` (infrastructure components).
+  This file does not duplicate them — they drift.
 - **Kubernetes** — `kubeadm` pins versions via `.env` or `--kubernetes-version`.
   **CRI-O** — version matches Kubernetes minor. Never use `stable`/`latest` markers.
 - **Gateway API CRDs** — install from upstream release URL; version must match
@@ -61,7 +62,9 @@ See `docs/cilium-gateway.md` for detailed setup and known issues.
   are shared across bootstrap types. Non-`K8S_` names only for type-specific
   vars (e.g. GPU pass-through PCI addresses).
 - **Version variables** — use component-specific names (e.g.
-  `METRICS_SERVER_VERSION`), never bare `VERSION`.
+  `METRICS_SERVER_VERSION`), never bare `VERSION`. Relevant for bootstrap
+  `.env` variables; infrastructure components pin versions in
+  `kustomization.yaml`.
 - **Helm release names** — match the directory name.
 
 ## Directory structure
@@ -201,7 +204,7 @@ pipe them through `envsubst` into temp files (cleaned up via `trap`).
 - `--no-blockpull` — skip backing file pull after `virt-install`
 - `--install-cni` / `--cni-version` — auto-install Cilium after `kubeadm init`
 - `--dry-run` — available on most scripts
-- Infrastructure `install.sh` scripts accept `--version` to override chart/image version
+- Infrastructure components pin versions in `kustomization.yaml` (`helmCharts[].version` or `images.newTag`)
 
 ## Secrets
 
@@ -219,8 +222,11 @@ placeholders), and TLS certificates.
 - **Check logs immediately** after deploying any component:
   `kubectl logs -n <ns> deployment/<name>`. Investigate CrashLoop/BackOff
   before moving on.
-- **Always use the install script** — never `kubectl apply -f` directly on
-  YAML files containing `${VAR}` placeholders. The scripts handle `envsubst`.
+- **Always use kustomize for infrastructure** — `kubectl apply -k` or
+  `kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`. Never
+  `kubectl apply -f` directly on infrastructure YAML files.
+  Bootstrap kubeadm configs contain `${VAR}` placeholders; those are
+  piped through `envsubst` by their scripts.
 - **Verify RBAC against upstream docs** — controllers like external-dns often
   need `get/list/watch` on `namespaces` beyond their primary resources.
 
