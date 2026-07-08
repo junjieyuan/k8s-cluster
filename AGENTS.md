@@ -15,10 +15,9 @@ This repo is responsible for two things:
 (`~/Projects/k8s-apps`). Do not place application manifests here.
 
 **The repo must be in full sync with the cluster** — every cluster-level
-resource (CNI, CSI, operators, system components) must be reflected in the
-code here. No manual changes on the cluster without corresponding updates
-to scripts, configs, or `.env` variables. All deploy scripts must be
-idempotent — re-running them should result in no-op.
+resource must be reflected in code here. No manual changes on the cluster
+without corresponding updates to manifests or configs. All deployments must
+be idempotent — re-running them should result in no-op.
 
 ## Tool constraints
 
@@ -44,7 +43,6 @@ idempotent — re-running them should result in no-op.
   **CRI-O** — version matches Kubernetes minor. Never use `stable`/`latest` markers.
 - **Gateway API CRDs** — install from upstream release URL; version must match
   what Cilium supports. Do not copy CRD YAML into the repo.
-- **Cilium** — use `cilium upgrade --version <x.y.z>` with explicit version.
 
 ## Infrastructure best practices
 
@@ -61,10 +59,6 @@ See `docs/cilium-gateway.md` for detailed setup and known issues.
 - **Environment variables** — use `K8S_` prefix for all `.env` variables that
   are shared across bootstrap types. Non-`K8S_` names only for type-specific
   vars (e.g. GPU pass-through PCI addresses).
-- **Version variables** — use component-specific names (e.g.
-  `METRICS_SERVER_VERSION`), never bare `VERSION`. Relevant for bootstrap
-  `.env` variables; infrastructure components pin versions in
-  `kustomization.yaml`.
 - **Helm release names** — match the directory name.
 
 ## Directory structure
@@ -87,18 +81,24 @@ docs/                           # Detailed reference: upgrade guides, known issu
 │                               # checklists, component setup notes
 ```
 
-## Code style
+## Shell scripts (bootstrap + cilium)
 
+Bootstrap and `infrastructure/network-cilium/install.sh` are the only shell
+scripts in this repo. Infrastructure components use `kubectl kustomize`.
+
+- `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to locate
+  sibling resources. All scripts can be run from any directory.
+- **Runtime deps** — check with `command -v` early in the script, before any
+  work begins.
 - **Emoji** — avoid decorative emoji. Use only when it genuinely aids
   readability of diagnostic output (e.g. `[OK]` / `[FAIL]` markers).
 - **Comments** — concise and factual. Describe *why*, not *what*.
-- **Runtime deps** — check with `command -v` early in the script, before any
-  work begins. Never assume `helm`, `kubectl`, or other tools are present.
-
-## Script invocation
-
-All scripts use `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`
-to locate their resources. They can be run from any directory.
+- **Privilege** — scripts that need root auto-escalate via
+  `exec sudo "$0" "$@"` when `$EUID -ne 0`. Exceptions:
+  `bootstrap/k8s-node/build.sh`, `bootstrap/k8s-gpu-node/build.sh`,
+  `bootstrap/storage-server/build.sh` (butane/envsubst as normal user);
+  `infrastructure/network-cilium/install.sh` only escalates when installing
+  the `cilium` CLI binary.
 
 ## Execution split: host vs VM
 
@@ -113,33 +113,17 @@ to locate their resources. They can be run from any directory.
 ```
 
 Host scripts provision VMs; VM scripts run inside the guest. Infrastructure
-scripts deploy cluster-level services via kubectl/helm. Never confuse the two.
-
-## Privilege handling
-
-All privileged scripts auto-escalate via `exec sudo "$0" "$@"` at the top
-when `$EUID -ne 0`. The caller does not need to prefix with `sudo`. Scripts
-that never need root:
-
-- `bootstrap/k8s-node/build.sh` — runs butane/envsubst as normal user
-- `bootstrap/k8s-gpu-node/build.sh` — runs butane/envsubst as normal user
-- `bootstrap/storage-server/build.sh` — runs butane/envsubst as normal user
-
-`infrastructure/network-cilium/install.sh` only escalates when installing the
-`cilium` CLI binary to `/usr/local/bin`.
+is deployed via kustomize from the control-plane node.
 
 ## Infrastructure deployment
 
-All infrastructure components (except Cilium) use Kustomize with the
-`helmCharts` generator. No `helm install` directly — Helm charts are
-declared in `kustomization.yaml` and applied via:
+All infrastructure components except Cilium use Kustomize.
+No `helm install` directly — Helm charts are declared in `kustomization.yaml`.
 
 ```bash
-# Plain kustomize (no Helm charts)
-kubectl apply -k infrastructure/external-dns/
-
-# helmCharts components (requires --enable-helm)
+# All helmCharts components (all use --enable-helm)
 kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f -
+kubectl kustomize --enable-helm infrastructure/external-dns/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/gpu-operator/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/metrics-server/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/storage-nfs/ | kubectl apply -f -
@@ -204,7 +188,8 @@ pipe them through `envsubst` into temp files (cleaned up via `trap`).
 - `--no-blockpull` — skip backing file pull after `virt-install`
 - `--install-cni` / `--cni-version` — auto-install Cilium after `kubeadm init`
 - `--dry-run` — available on most scripts
-- Infrastructure components pin versions in `kustomization.yaml` (`helmCharts[].version` or `images.newTag`)
+- Infrastructure components pin versions in `kustomization.yaml`
+  (`helmCharts[].version` or `images.newTag`)
 
 ## Secrets
 
@@ -242,13 +227,13 @@ placeholders), and TLS certificates.
 3. `bootstrap/vm-deploy.sh --type <type>` → VM
 
 After provisioning, `vm-deploy.sh` removes the fwcfg Ignition from the domain
-XML and enables autostart. For GPU nodes, `deploy_prepare_domain_xml` attaches PCI devices, virtiofs,
-and configures CPU/memory backing in the domain XML before first boot.
+XML and enables autostart. For GPU nodes, `deploy_prepare_domain_xml` attaches
+PCI devices, virtiofs, and configures CPU/memory backing in the domain XML
+before first boot.
 
 ## Reference docs
 
 - `docs/cilium-gateway.md` — Gateway API setup, LB-IPAM, L2 announcements, known issues
-- `docs/cert-manager.md` — DNS-01 challenge with Cloudflare for wildcard certs
 - `docs/deployment-checklist.md` — pre-deploy verification checklist
 - `docs/control-plane-upgrade.md` — control-plane node upgrade procedure
 - `docs/worker-upgrade.md` — worker node upgrade procedure
