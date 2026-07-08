@@ -5,7 +5,7 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: ${ACME_EMAIL}
+    email: yuan@junjie.pro
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
     solvers:
@@ -14,6 +14,3 @@ spec:
             apiTokenSecretRef:
               name: cloudflare-api-token
               key: api-token
-    selector:
-      dnsZones:
-        - ${ACME_DNS_ZONE}
