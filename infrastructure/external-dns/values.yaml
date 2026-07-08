@@ -1,0 +1,22 @@
+provider:
+  name: cloudflare
+
+sources:
+  - gateway-httproute
+  - gateway-grpcroute
+
+domainFilters:
+  - junjie.pro
+
+policy: sync
+txtOwnerId: k8s-gw-junjie
+interval: 5m
+logLevel: info
+
+# CF_API_TOKEN injected via env — secret managed by kustomize secretGenerator.
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: api-token
