@@ -24,9 +24,6 @@ kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f 
 ```
 
 Requires `.env` with Cloudflare API token (copy from `.env.example`).
-Default ClusterIssuer targets Let's Encrypt production. To use staging,
-swap `clusterissuer.yaml` for `clusterissuer-staging.yaml` in
-`kustomization.yaml` resources.
 
 ### external-dns
 
