@@ -7,7 +7,7 @@ metadata:
 provisioner: nfs.csi.k8s.io
 allowVolumeExpansion: true
 parameters:
-  server: ${NFS_SERVER}
+  server: storage-001.k8s.junjie.pro
   share: /                          # NFSv4 root mapping: the NFS server exports /var/nfs with fsid=0,
                                      # making it the NFSv4 pseudofilesystem root. Clients mount "/"
                                      # which NFSv4 maps to /var/nfs on the server. If the server
