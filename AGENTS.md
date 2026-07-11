@@ -66,9 +66,12 @@ See `docs/cilium-gateway.md` for detailed setup and known issues.
 ```
 bootstrap/<type>/
 │   ├── .env.example           # Environment variable template
-│   ├── build.sh               # Compile Butane template → Ignition config
-│   ├── deploy.sh              # Type-specific deploy logic (sourced by vm-deploy.sh)
-│   └── <type>.bu.tmpl         # Butane template (FCOS config)
+│   ├── <type>.bu.tmpl         # Butane template (FCOS config)
+│   └── deploy.sh              # Optional type-specific overrides (e.g. GPU)
+├── build-ignition.sh            # Shared: compile .bu.tmpl → .ign (all types)
+├── vm-deploy.sh                 # VM provisioning orchestrator (auto-discovers types)
+├── vm-image-upload.sh           # Upload FCOS image to libvirt
+└── kubeadm/                     # kubeadm init/join scripts and templates
 
 infrastructure/<component>/
 │   ├── kustomization.yaml      # helmCharts (preferred) or resources + secretGenerator
@@ -95,17 +98,15 @@ scripts in this repo. Infrastructure components use `kubectl kustomize`.
 - **Comments** — concise and factual. Describe *why*, not *what*.
 - **Privilege** — scripts that need root auto-escalate via
   `exec sudo "$0" "$@"` when `$EUID -ne 0`. Exceptions:
-  `bootstrap/k8s-node/build.sh`, `bootstrap/k8s-gpu-node/build.sh`,
-  `bootstrap/storage-server/build.sh` (butane/envsubst as normal user);
+  `bootstrap/build-ignition.sh` (butane/envsubst as normal user);
   `infrastructure/network-cilium/install.sh` only escalates when installing
   the `cilium` CLI binary.
 
 ## Execution split: host vs VM
 
 ```
-[host]  bootstrap/vm-image-upload.sh, bootstrap/k8s-node/build.sh,
-        bootstrap/k8s-gpu-node/build.sh, bootstrap/storage-server/build.sh,
-        bootstrap/vm-deploy.sh
+[host]  bootstrap/vm-image-upload.sh, bootstrap/build-ignition.sh,
+        bootstrap/vm-deploy.sh (discovers types under bootstrap/)
 [vm]    bootstrap/kubeadm/init-node.sh, bootstrap/kubeadm/init-control-plane.sh,
         bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
 [vm]    infrastructure/network-cilium/install.sh  (cilium CLI — complex setup)
@@ -143,12 +144,12 @@ Version pinning:
 
 All types follow the same pattern:
 1. Copy `.env.example` → `.env`, fill in required variables.
-2. `build.sh` compiles the `.bu.tmpl` via envsubst + butane → `.ign`.
+2. `build-ignition.sh` compiles the `.bu.tmpl` via envsubst + butane → `.ign`.
 3. `vm-deploy.sh` injects the Ignition config into the VM.
 4. `vm-deploy.sh` removes fwcfg Ignition from domain XML after provisioning
    (security — the Ignition config contains the password hash).
 
-`build.sh` uses `set -a; source .env; set +a` to load variables. `envsubst`
+`build-ignition.sh` uses `set -a; source .env; set +a` to load variables. `envsubst`
 substitutes only the variables the template needs — not everything in `.env`.
 
 **GPU workers** additionally: uCore autorebase (2 reboots), k8s package

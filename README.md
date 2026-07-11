@@ -136,14 +136,14 @@ cp bootstrap/storage-server/.env.example bootstrap/storage-server/.env
 
 ```bash
 # K8s node
-bash bootstrap/k8s-node/build.sh              # generates bootstrap/k8s-node/node.ign
-bash bootstrap/k8s-node/build.sh --validate   # validate only, no output
+bash bootstrap/build-ignition.sh --template bootstrap/k8s-node/node.bu.tmpl              # generates bootstrap/k8s-node/node.ign
+bash bootstrap/build-ignition.sh --template bootstrap/k8s-node/node.bu.tmpl --validate   # validate only, no output
 
 # GPU worker
-bash bootstrap/k8s-gpu-node/build.sh          # generates bootstrap/k8s-gpu-node/gpu-worker.ign
+bash bootstrap/build-ignition.sh --template bootstrap/k8s-gpu-node/gpu-worker.bu.tmpl          # generates bootstrap/k8s-gpu-node/gpu-worker.ign
 
 # Storage server
-bash bootstrap/storage-server/build.sh        # generates bootstrap/storage-server/storage.ign
+bash bootstrap/build-ignition.sh --template bootstrap/storage-server/storage.bu.tmpl        # generates bootstrap/storage-server/storage.ign
 ```
 
 #### 4. Provision VMs
