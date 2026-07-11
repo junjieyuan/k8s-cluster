@@ -11,10 +11,10 @@ Provision a Fedora CoreOS VM backed by a QCOW2 image, injecting an Ignition conf
 The --type argument determines how the ignition is built and which extra VM
 configuration is applied (e.g. GPU passthrough).
 
-Supported types: k8s-node, k8s-gpu-node, storage-server
+Supported types are auto-discovered from bootstrap/ subdirectories with .bu.tmpl files.
 
 Options:
-  --type TYPE       Node type (k8s-node, k8s-gpu-node, or storage-server). Required.
+  --type TYPE       Node type (e.g. k8s-node, k8s-gpu-node, storage-server). Required.
   --name NAME       VM name (default from .env: K8S_HOSTNAME)
   --cpus N          Number of vCPUs (default from .env: K8S_CPUS).
   --memory MiB      Memory in MiB (default from .env: K8S_MEMORY).
@@ -66,12 +66,28 @@ done
 fail() { echo "Error: $*" >&2; exit 1; }
 
 # --- Resolve type ---
+# A type is any subdirectory under SCRIPT_DIR that contains a .bu.tmpl file.
+_available_types() {
+    local dir
+    for dir in "${SCRIPT_DIR}"/*/; do
+        [[ -d "$dir" ]] && compgen -G "${dir}*.bu.tmpl" >/dev/null && echo -n " $(basename "$dir")"
+    done
+}
+
 if [[ -z "$NODE_TYPE" ]]; then
-    fail "--type is required (one of: k8s-node, k8s-gpu-node, storage-server)"
+    echo -n "Error: --type is required. Available types:" >&2
+    _available_types >&2
+    echo >&2
+    exit 1
 fi
 
 TYPE_DIR="${SCRIPT_DIR}/${NODE_TYPE}"
-[[ -d "$TYPE_DIR" ]] || fail "Type directory not found: $TYPE_DIR"
+if [[ ! -d "$TYPE_DIR" ]] || ! compgen -G "${TYPE_DIR}/*.bu.tmpl" >/dev/null; then
+    echo -n "Error: Unknown type '$NODE_TYPE'. Available:" >&2
+    _available_types >&2
+    echo >&2
+    exit 1
+fi
 
 # --- Load defaults from .env (before VM_NAME check so K8S_HOSTNAME is available) ---
 if [[ -f "$TYPE_DIR/.env" ]]; then
@@ -84,12 +100,26 @@ if [[ -z "$VM_NAME" ]]; then
     fail "--name is required, or set K8S_HOSTNAME in ${NODE_TYPE}/.env (example: k8s-control-plane-001)"
 fi
 
-DEPLOY_SCRIPT="${TYPE_DIR}/deploy.sh"
-[[ -f "$DEPLOY_SCRIPT" ]] || fail "deploy.sh not found in $TYPE_DIR"
+# --- Default deploy functions (type-specific deploy.sh can override) ---
+deploy_build() {
+    local template
+    template=$(echo "${TYPE_DIR}"/*.bu.tmpl | head -1)
+    if [[ ! -f "$template" ]]; then
+        fail "No .bu.tmpl found in $TYPE_DIR"
+    fi
+    bash "${SCRIPT_DIR}/build-ignition.sh" --template "$template"
+    IGNITION_FILE="${template%.bu.tmpl}.ign"
+}
 
-# Source type-specific deploy functions
-# shellcheck disable=SC1090
-source "$DEPLOY_SCRIPT"
+deploy_extra_args() { true; }
+deploy_prepare_domain_xml() { :; }
+
+# Source type-specific overrides (optional — only needed by types like k8s-gpu-node)
+DEPLOY_SCRIPT="${TYPE_DIR}/deploy.sh"
+if [[ -f "$DEPLOY_SCRIPT" ]]; then
+    # shellcheck disable=SC1090
+    source "$DEPLOY_SCRIPT"
+fi
 
 VM_CPUS="${VM_CPUS:-${K8S_CPUS:-}}"
 VM_MEMORY="${VM_MEMORY:-${K8S_MEMORY:-}}"
