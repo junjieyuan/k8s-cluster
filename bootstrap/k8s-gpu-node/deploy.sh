@@ -2,8 +2,7 @@
 # k8s-gpu-node type-specific deploy overrides.
 set -euo pipefail
 # Sourced by vm-deploy.sh. Do not run directly.
-# deploy_build and deploy_extra_args use defaults — only GPU-specific
-# domain XML setup is here.
+# deploy_build uses default — only GPU-specific domain XML setup is here.
 #
 # Expected globals from vm-deploy.sh: TYPE_DIR
 # Expected .env vars (in addition to build-ignition.sh vars):

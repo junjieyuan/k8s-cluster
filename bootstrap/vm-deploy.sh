@@ -111,9 +111,6 @@ deploy_build() {
     IGNITION_FILE="${template%.bu.tmpl}.ign"
 }
 
-deploy_extra_args() { true; }
-deploy_prepare_domain_xml() { :; }
-
 # Source type-specific overrides (optional — only needed by types like k8s-gpu-node)
 DEPLOY_SCRIPT="${TYPE_DIR}/deploy.sh"
 if [[ -f "$DEPLOY_SCRIPT" ]]; then
@@ -134,13 +131,6 @@ fi
 if [[ -z "$VM_DISK_SIZE" ]]; then
     fail "--disk-size is required (set K8S_DISK_SIZE in .env or pass --disk-size)"
 fi
-
-# Check that required functions are defined
-for fn in deploy_build deploy_extra_args deploy_prepare_domain_xml; do
-    if ! declare -F "$fn" >/dev/null 2>&1; then
-        fail "deploy.sh must define function: $fn"
-    fi
-done
 
 # --- Build ignition ---
 echo "Building Ignition config for $NODE_TYPE..." >&2
@@ -175,8 +165,8 @@ virt-install \\
     --sysinfo type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file=$IGNITION_FILE \\
     --cpu host-passthrough \\
     --noautoconsole \\
-    --print-xml$(deploy_extra_args | sed 's/^/ \\\n    /') > ${TYPE_DIR}/${VM_NAME}.xml.tmp
-# deploy_prepare_domain_xml ${TYPE_DIR}/${VM_NAME}.xml.tmp  (type-specific XML modifications)
+    --print-xml > ${TYPE_DIR}/${VM_NAME}.xml.tmp
+# deploy_prepare_domain_xml ${TYPE_DIR}/${VM_NAME}.xml.tmp  (type-specific XML modifications; if defined)
 virsh define ${TYPE_DIR}/${VM_NAME}.xml.tmp
 virsh start $VM_NAME
 virsh autostart $VM_NAME
@@ -225,9 +215,6 @@ cleanup() {
 }
 trap cleanup ERR
 
-# Read extra args into an array safely
-readarray -t EXTRA_ARGS < <(deploy_extra_args)
-
 # 1. Generate domain XML and create overlay disk.
 # virt-install --print-xml creates storage (overlay QCOW2) but does NOT
 # define or start the domain — giving us a window to modify the XML.
@@ -245,12 +232,11 @@ virt-install \
     --sysinfo "type=fwcfg,entry0.name=opt/com.coreos/config,entry0.file=$IGNITION_FILE" \
     --cpu host-passthrough \
     --noautoconsole \
-    --print-xml \
-    "${EXTRA_ARGS[@]}" > "$tmp_xml"
+    --print-xml > "$tmp_xml"
 
 # 2. Type-specific XML modifications before first boot
 echo "Applying type-specific XML modifications..." >&2
-deploy_prepare_domain_xml "$tmp_xml"
+declare -F deploy_prepare_domain_xml >/dev/null && deploy_prepare_domain_xml "$tmp_xml"
 
 # 3. Define and start the VM
 echo "Defining VM..." >&2
