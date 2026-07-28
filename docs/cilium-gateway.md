@@ -53,7 +53,7 @@ metadata:
   name: default
 spec:
   blocks:
-    - cidr: 192.168.122.0/24
+    - cidr: 192.168.200.0/24
 EOF
 ```
 

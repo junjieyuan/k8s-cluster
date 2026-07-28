@@ -14,7 +14,7 @@ Enables Gateway API, kube-proxy replacement, and LB-IPAM by default.
 Options:
   --version VERSION   Cilium version (default: 1.19.4)
   --cidr CIDR         Pod IPv4 CIDR (default: 172.16.0.0/12)
-  --lb-cidr CIDR      LB-IPAM pool CIDR (default: auto-detect from node network)
+  --lb-cidr CIDR      LB-IPAM pool CIDR (default: 192.168.200.0/24)
   --dry-run           Print commands without executing
   --help              Show this help
 EOF
@@ -24,11 +24,8 @@ EOF
 CILIUM_VERSION="${CILIUM_VERSION:-1.19.4}"
 VERSION="${CILIUM_VERSION}"
 CIDR="172.16.0.0/12"
-LB_CIDR=""
+LB_CIDR="192.168.200.0/24"
 DRY_RUN=false
-
-# Preserve original args for re-exec under sudo (the loop below consumes $@)
-ORIGINAL_ARGS=("$@")
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -43,9 +40,6 @@ done
 
 # Install cilium CLI if missing
 if ! command -v cilium >/dev/null 2>&1; then
-    if [[ $EUID -ne 0 ]]; then
-        exec sudo bash "$0" "${ORIGINAL_ARGS[@]}"
-    fi
     echo "cilium CLI not found — installing..." >&2
 
     CLI_ARCH="amd64"
@@ -69,7 +63,7 @@ if ! command -v cilium >/dev/null 2>&1; then
     (cd "$TMPDIR" && sha256sum --check "${TARBALL}.sha256sum")
 
     echo "  Installing to /usr/local/bin..." >&2
-    tar xzvfC "$TMPDIR/$TARBALL" /usr/local/bin >/dev/null
+    sudo tar xzvfC "$TMPDIR/$TARBALL" /usr/local/bin >/dev/null
 
     echo "  cilium CLI v${CLI_VERSION} installed" >&2
 fi
@@ -80,23 +74,10 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
     exit 1
 fi
 
-# Auto-detect LB CIDR from node network if not provided
-if [[ -z "$LB_CIDR" ]]; then
-    NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null)
-    if [[ -n "$NODE_IP" ]]; then
-        # Derive the /24 subnet from the node IP
-        LB_CIDR="${NODE_IP%.*}.0/24"
-        echo "Auto-detected LB CIDR from node IP ${NODE_IP}: ${LB_CIDR}" >&2
-    else
-        echo "Error: cannot auto-detect LB CIDR. Provide --lb-cidr manually." >&2
-        exit 1
-    fi
-fi
-
 if $DRY_RUN; then
     echo "DRY-RUN: install Gateway API CRDs v1.5.1"
     echo "DRY-RUN: patch TLSRoute CRD for v1alpha2 compatibility (dynamic index)"
-    echo "DRY-RUN: cilium install --version \"$VERSION\" \\"
+    echo "DRY-RUN: cilium install/upgrade --version \"$VERSION\" \\"
     echo "  --set \"ipam.operator.clusterPoolIPv4PodCIDRList={$CIDR}\" \\"
     echo "  --set kubeProxyReplacement=true \\"
     echo "  --set gatewayAPI.enabled=true"
@@ -123,12 +104,19 @@ else
     echo "Warning: v1alpha2 not found in TLSRoute CRD versions — patch may no longer be needed." >&2
 fi
 
-echo "Installing Cilium $VERSION (Gateway API + kube-proxy replacement)..." >&2
-cilium install --version "$VERSION" \
-    --set "ipam.operator.clusterPoolIPv4PodCIDRList={$CIDR}" \
-    --set kubeProxyReplacement=true \
-    --set gatewayAPI.enabled=true
-echo "Cilium installed." >&2
+echo "Installing/upgrading Cilium $VERSION (Gateway API + kube-proxy replacement)..." >&2
+if kubectl get ds cilium -n kube-system >/dev/null 2>&1; then
+    cilium upgrade --version "$VERSION" \
+        --set "ipam.operator.clusterPoolIPv4PodCIDRList={$CIDR}" \
+        --set kubeProxyReplacement=true \
+        --set gatewayAPI.enabled=true
+else
+    cilium install --version "$VERSION" \
+        --set "ipam.operator.clusterPoolIPv4PodCIDRList={$CIDR}" \
+        --set kubeProxyReplacement=true \
+        --set gatewayAPI.enabled=true
+fi
+echo "Cilium configured." >&2
 
 # Wait for operator to be ready
 echo "Waiting for Cilium operator..." >&2
