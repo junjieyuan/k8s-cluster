@@ -41,6 +41,10 @@ be idempotent — re-running them should result in no-op.
   This file does not duplicate them — they drift.
 - **Kubernetes** — `kubeadm` pins versions via `.env` or `--kubernetes-version`.
   **CRI-O** — version matches Kubernetes minor. Never use `stable`/`latest` markers.
+- **升级顺序** — rpm-ostree 更新 kubelet/kubeadm 后，**必须**在 control-plane 节点上运行
+  `sudo kubeadm upgrade plan` 查看可升级版本，确认后运行
+  `sudo kubeadm upgrade apply <version>` 升级控制面静态 pod
+  （apiserver/controller-manager/scheduler），否则 kubelet 与控制面版本会不一致。
 - **Gateway API CRDs** — install from upstream release URL; version must match
   what Cilium supports. Do not copy CRD YAML into the repo.
 
