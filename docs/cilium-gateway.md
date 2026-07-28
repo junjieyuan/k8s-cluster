@@ -78,6 +78,27 @@ external hosts to reach LoadBalancer IPs:
 3. Create `CiliumL2AnnouncementPolicy` with the node interfaces (e.g. `^enp`).
 4. Restart Cilium agents.
 
+### Host route for hypervisor access
+
+When the LB CIDR differs from the VM network (e.g. LB on `192.168.200.0/24`,
+VMs on `192.168.122.0/24`), the hypervisor cannot reach LB IPs without an
+explicit route — its `virbr0` interface is on the VM subnet, so packets for
+the LB subnet would otherwise go via the default gateway.
+
+Add a direct route on the hypervisor:
+
+```bash
+# Apply immediately
+sudo ip route add 192.168.200.0/24 dev virbr0
+
+# Persist across reboots (NetworkManager)
+sudo nmcli connection modify virbr0 +ipv4.routes "192.168.200.0/24"
+sudo nmcli connection up virbr0
+```
+
+Other VMs on the same bridge don't need this — they ARP for LB IPs directly
+via the L2 announcements above.
+
 ### cilium CLI version caveat
 
 `cilium upgrade` without `--version` uses the CLI's **built-in default**, not
