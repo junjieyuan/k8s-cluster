@@ -57,7 +57,7 @@ spec:
 EOF
 ```
 
-Note: `start`/`stop` fields on the pool block are **ignored** by Cilium 1.19.4.
+Note: `start`/`stop` fields on the pool block are **ignored** by Cilium 1.19.6.
 
 ### L2 announcements for external LB access
 
@@ -87,5 +87,5 @@ the currently running version or latest stable. Check with `cilium version` firs
 # Shows: cilium image (default): v1.19.3, cilium image (stable): v1.19.4
 cilium version
 # Always specify --version to avoid accidental downgrade
-cilium upgrade --version 1.19.4 --set gatewayAPI.enabled=true --set kubeProxyReplacement=true
+cilium upgrade --version 1.19.6 --set gatewayAPI.enabled=true --set kubeProxyReplacement=true
 ```

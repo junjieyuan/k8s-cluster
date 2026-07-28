@@ -21,7 +21,7 @@ Options:
   --config PATH         kubeadm init config template (default: bootstrap/kubeadm/kubeadm-init.yaml)
   --configure-kubectl   Copy admin.conf to ~/.kube/config after init
   --install-cni         Run infrastructure/network-cilium/install.sh after init
-  --cni-version VER    Cilium version (default: 1.19.4)
+  --cni-version VER    Cilium version (default: 1.19.6)
   --pod-cidr CIDR       Pod IPv4 CIDR (default: 172.16.0.0/12)
   --dry-run             Print commands without executing
   --help                Show this help
@@ -31,7 +31,7 @@ EOF
 
 CONFIGURE_KUBECTL=false
 INSTALL_CNI=false
-CNI_VERSION="1.19.4"
+CNI_VERSION="1.19.6"
 POD_CIDR="172.16.0.0/12"
 CONTROL_PLANE_ENDPOINT="control-plane.k8s.junjie.pro:6443"
 DRY_RUN=false

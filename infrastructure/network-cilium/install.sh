@@ -12,7 +12,7 @@ Auto-downloads the cilium CLI if not already installed.
 Enables Gateway API, kube-proxy replacement, and LB-IPAM by default.
 
 Options:
-  --version VERSION   Cilium version (default: 1.19.4)
+  --version VERSION   Cilium version (default: 1.19.6)
   --cidr CIDR         Pod IPv4 CIDR (default: 172.16.0.0/12)
   --lb-cidr CIDR      LB-IPAM pool CIDR (default: 192.168.200.0/24)
   --dry-run           Print commands without executing
@@ -21,7 +21,7 @@ EOF
     exit "${1:-0}"
 }
 
-CILIUM_VERSION="${CILIUM_VERSION:-1.19.4}"
+CILIUM_VERSION="${CILIUM_VERSION:-1.19.6}"
 VERSION="${CILIUM_VERSION}"
 CIDR="172.16.0.0/12"
 LB_CIDR="192.168.200.0/24"

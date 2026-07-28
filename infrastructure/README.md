@@ -14,7 +14,7 @@ CRDs, creates LB-IPAM pool, and enables L2 announcements. Uses `cilium` CLI
 
 ```bash
 bash infrastructure/network-cilium/install.sh
-bash infrastructure/network-cilium/install.sh --version 1.19.4 --cidr 172.16.0.0/12
+bash infrastructure/network-cilium/install.sh --version 1.19.6 --cidr 172.16.0.0/12
 ```
 
 ### cert-manager
