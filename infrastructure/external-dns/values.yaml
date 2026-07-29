@@ -2,8 +2,7 @@ provider:
   name: cloudflare
 
 sources:
-  - gateway-httproute
-  - gateway-grpcroute
+  - crd
 
 domainFilters:
   - junjie.pro
@@ -12,6 +11,8 @@ policy: sync
 txtOwnerId: k8s-gw-junjie
 interval: 5m
 logLevel: info
+extraArgs:
+  cloudflare-proxied: true
 
 # CF_API_TOKEN injected via env — secret managed by kustomize secretGenerator.
 env:
