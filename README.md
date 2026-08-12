@@ -70,7 +70,7 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
     │   ├── kustomization.yaml              # external-dns chart (helmCharts)
     │   ├── values.yaml                     # Helm values (Cloudflare, proxied default)
     │   ├── namespace.yaml                  # external-dns namespace
-    │   └── deploy.sh                       # [vm]  DNSEndpoint CRD bootstrap + apply
+    │   └── deploy.sh                       # [host] DNSEndpoint CRD bootstrap + apply
     └── metrics-server/
         ├── kustomization.yaml              # metrics-server chart (helmCharts)
         └── values.yaml                     # Helm values (kubelet-insecure-tls)
@@ -272,6 +272,7 @@ ssh core@<control-plane-ip>
 bash infrastructure/network-cilium/pre-apply.sh
 kubectl kustomize --enable-helm infrastructure/network-cilium/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f -
+# external-dns: run deploy.sh first (DNSEndpoint CRD from the cached chart)
 # ... each component: kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -
 ```
 

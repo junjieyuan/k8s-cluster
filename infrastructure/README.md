@@ -38,8 +38,10 @@ records are never proxied.
 
 ### external-dns
 
+`deploy.sh` bootstraps the DNSEndpoint CRD from the cached chart, then applies:
+
 ```bash
-kubectl kustomize --enable-helm infrastructure/external-dns/ | kubectl apply -f -
+bash infrastructure/external-dns/deploy.sh
 ```
 
 Requires `.env` with Cloudflare API token (copy from `.env.example`).

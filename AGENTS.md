@@ -120,10 +120,12 @@ docs/                           # Detailed reference: upgrade guides, known issu
 │                               # checklists, component setup notes
 ```
 
-## Shell scripts (bootstrap + network-cilium)
+## Shell scripts (bootstrap + infrastructure)
 
-Bootstrap and `infrastructure/network-cilium/pre-apply.sh` are the only shell
-scripts in this repo. Infrastructure components use `kubectl kustomize`.
+The only shell scripts in this repo are the bootstrap scripts plus two
+kubectl-based CRD bootstrap helpers: `infrastructure/network-cilium/pre-apply.sh`
+and `infrastructure/external-dns/deploy.sh`. Infrastructure components use
+`kubectl kustomize`.
 
 - `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to locate
   sibling resources. All scripts can be run from any directory.
@@ -143,12 +145,14 @@ scripts in this repo. Infrastructure components use `kubectl kustomize`.
         bootstrap/vm-deploy.sh (discovers types under bootstrap/)
 [vm]    bootstrap/kubeadm/init-node.sh, bootstrap/kubeadm/init-control-plane.sh,
         bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
-[host]  infrastructure/network-cilium/pre-apply.sh  (Gateway API CRD bootstrap)
-[vm]    infrastructure/*/ (all other components — kubectl kustomize --enable-helm)
+[host]  infrastructure/network-cilium/pre-apply.sh, external-dns/deploy.sh
+        (CRD bootstrap — any machine with kubectl admin access)
+[host]  infrastructure/*/ (kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -)
 ```
 
 Host scripts provision VMs; VM scripts run inside the guest. Infrastructure
-is deployed via kustomize from the control-plane node.
+components are kubectl-based and run from any machine with cluster admin
+access — the README deploy flow uses the control-plane node.
 
 ## Infrastructure deployment
 
