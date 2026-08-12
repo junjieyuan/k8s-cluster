@@ -11,6 +11,10 @@ policy: sync
 txtOwnerId: k8s-gw-junjie
 interval: 5m
 logLevel: info
+# Global default: every DNSEndpoint record is proxied (orange cloud). Per-record
+# overrides live in k8s-apps DNSEndpoints via providerSpecific with the full
+# annotation key external-dns.alpha.kubernetes.io/cloudflare-proxied and a
+# string value "true"/"false".
 extraArgs:
   cloudflare-proxied: true
 

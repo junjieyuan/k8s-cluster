@@ -25,6 +25,14 @@ kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f 
 
 Requires `.env` with Cloudflare API token (copy from `.env.example`).
 
+Proxying is the global default: `extraArgs.cloudflare-proxied: true` in
+`infrastructure/external-dns/values.yaml` means every DNSEndpoint record is
+proxied (orange cloud). Per-record overrides (e.g. DNS-only) are declared on
+the app side in `k8s-apps` DNSEndpoints with `providerSpecific` using the full
+annotation key `external-dns.alpha.kubernetes.io/cloudflare-proxied` and the
+string value `"true"`/`"false"` (not a YAML boolean). TXT/MX/NS/SPF/SRV/LOC
+records are never proxied.
+
 ### external-dns
 
 ```bash
