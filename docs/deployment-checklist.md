@@ -52,8 +52,13 @@ This applies to new components and upgrades alike.
   `generatorOptions.disableNameSuffixHash: true` is set since kustomize
   cannot auto-rewrite custom resource fields.
 
-## Cilium (cilium CLI — not kustomize)
+## Cilium
 
+- [ ] `pre-apply.sh` run before the first deploy (Gateway API CRDs from the
+  upstream release URL).
+- [ ] Chart rendered with `kubectl kustomize --enable-helm
+  infrastructure/network-cilium/`; version pinned in `kustomization.yaml`.
+- [ ] `kubectl diff` against live shows no unexpected spec changes.
 - [ ] Clustered changes (e.g. operator restart after config patch) use
   `kubectl rollout restart` and wait for availability.
 - [ ] Gateway API CRD version matches what Cilium supports.

@@ -1,0 +1,17 @@
+---
+{
+  gatewayAPI: {
+    enabled: true,
+  },
+  ipam: {
+    operator: {
+      clusterPoolIPv4PodCIDRList: [
+        "172.16.0.0/12",
+      ],
+    },
+  },
+  kubeProxyReplacement: true,
+  l2announcements: {
+    enabled: true,
+  },
+}

@@ -24,13 +24,11 @@ be idempotent — re-running them should result in no-op.
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script.
   Never introduce Python, Node, or other languages.
 - **No package managers** — no `npm`, `pip`, `cargo`, etc. Runtime deps
-  (`butane`, `envsubst`, `virsh`, `virt-install`, `kubeadm`) are system-level
-  tools assumed pre-installed. Exception: `cilium` CLI is auto-downloaded by
-  `infrastructure/network-cilium/install.sh` if missing.
+  (`butane`, `envsubst`, `helm`, `jq`, `virsh`, `virt-install`, `kubeadm`) are
+  system-level tools assumed pre-installed.
 - **Helm** is used **only** via the Kustomize `helmCharts` generator
   (`kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`), never
-  `helm install` directly. Exception: Cilium uses `cilium` CLI for its
-  complex multi-step setup (CRD patching, L2 announcement config).
+  `helm install` directly.
 
 ## YAML is KYAML
 
@@ -122,9 +120,9 @@ docs/                           # Detailed reference: upgrade guides, known issu
 │                               # checklists, component setup notes
 ```
 
-## Shell scripts (bootstrap + cilium)
+## Shell scripts (bootstrap + network-cilium)
 
-Bootstrap and `infrastructure/network-cilium/install.sh` are the only shell
+Bootstrap and `infrastructure/network-cilium/pre-apply.sh` are the only shell
 scripts in this repo. Infrastructure components use `kubectl kustomize`.
 
 - `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` to locate
@@ -136,9 +134,7 @@ scripts in this repo. Infrastructure components use `kubectl kustomize`.
 - **Comments** — concise and factual. Describe *why*, not *what*.
 - **Privilege** — scripts that need root auto-escalate via
   `exec sudo "$0" "$@"` when `$EUID -ne 0`. Exceptions:
-  `bootstrap/build-ignition.sh` (butane/envsubst as normal user);
-  `infrastructure/network-cilium/install.sh` only escalates when installing
-  the `cilium` CLI binary.
+  `bootstrap/build-ignition.sh` (butane/envsubst as normal user).
 
 ## Execution split: host vs VM
 
@@ -147,7 +143,7 @@ scripts in this repo. Infrastructure components use `kubectl kustomize`.
         bootstrap/vm-deploy.sh (discovers types under bootstrap/)
 [vm]    bootstrap/kubeadm/init-node.sh, bootstrap/kubeadm/init-control-plane.sh,
         bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
-[vm]    infrastructure/network-cilium/install.sh  (cilium CLI — complex setup)
+[host]  infrastructure/network-cilium/pre-apply.sh  (Gateway API CRD bootstrap)
 [vm]    infrastructure/*/ (all other components — kubectl kustomize --enable-helm)
 ```
 
@@ -156,8 +152,10 @@ is deployed via kustomize from the control-plane node.
 
 ## Infrastructure deployment
 
-All infrastructure components except Cilium use Kustomize.
-No `helm install` directly — Helm charts are declared in `kustomization.yaml`.
+All infrastructure components use Kustomize. Cilium's chart is also
+`helmCharts`; its `pre-apply.sh` only bootstraps Gateway API CRDs (upstream
+URL), and the LB-IPAM pool + L2 policy are kustomize resources. No
+`helm install` directly — Helm charts are declared in `kustomization.yaml`.
 
 ```bash
 # All helmCharts components (all use --enable-helm)
@@ -166,6 +164,11 @@ kubectl kustomize --enable-helm infrastructure/external-dns/ | kubectl apply -f 
 kubectl kustomize --enable-helm infrastructure/gpu-operator/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/metrics-server/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/storage-nfs/ | kubectl apply -f -
+
+# network-cilium: pre-apply Gateway API CRDs, then the standard kustomize apply
+bash infrastructure/network-cilium/pre-apply.sh
+kubectl kustomize --enable-helm infrastructure/network-cilium/ | kubectl apply -f -
+# fresh cluster: run the apply twice (operator registers Cilium CRDs between runs)
 ```
 
 Secrets use `secretGenerator` with `.env` files (real values gitignored,
@@ -220,7 +223,11 @@ KYAML-formatted (see "YAML is KYAML") — re-run `yamlfmt` after editing.
 ## Hardcoded that IS configurable
 
 - `control-plane.k8s.junjie.pro:6443` — override with `--endpoint`
-- `172.16.0.0/12` / `10.96.0.0/12` — override with `--pod-cidr` / `--cidr`
+- `172.16.0.0/12` — kubeadm `--pod-cidr`; Cilium pod CIDR via
+  `ipam.operator.clusterPoolIPv4PodCIDRList` in `network-cilium/values.yaml`
+- `10.96.0.0/12` — kubeadm service subnet
+- `192.168.200.0/24` — LB-IPAM pool CIDR, set in
+  `network-cilium/loadbalancer-ippool.yaml`
 - Package versions via `.env` vars or CLI flags
 - `K8S_PREINSTALLED_PACKAGES`, `K8S_HOSTNAME` — set in `.env`
 - `K8S_CPUS`, `K8S_MEMORY`, `K8S_DISK_SIZE` — set in `.env`, override with

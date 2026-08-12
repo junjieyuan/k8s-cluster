@@ -8,13 +8,16 @@ configuration details.
 
 ### network-cilium
 
-Cilium CNI with Gateway API + kube-proxy replacement. Installs Gateway API
-CRDs, creates LB-IPAM pool, and enables L2 announcements. Uses `cilium` CLI
-(not kustomize) due to complex multi-step setup.
+Cilium CNI with Gateway API + kube-proxy replacement. The chart, LB-IPAM pool,
+and L2 policy are deployed via Kustomize (version pinned in
+`kustomization.yaml`, pool CIDR in `loadbalancer-ippool.yaml`); `pre-apply.sh`
+bootstraps Gateway API CRDs from the upstream release URL. Cilium CRDs are
+registered by cilium-operator at startup — no cilium CLI needed.
 
 ```bash
-bash infrastructure/network-cilium/install.sh
-bash infrastructure/network-cilium/install.sh --version 1.19.6 --cidr 172.16.0.0/12
+bash infrastructure/network-cilium/pre-apply.sh
+kubectl kustomize --enable-helm infrastructure/network-cilium/ | kubectl apply -f -
+# fresh cluster: run the apply twice — operator registers Cilium CRDs between runs
 ```
 
 ### cert-manager

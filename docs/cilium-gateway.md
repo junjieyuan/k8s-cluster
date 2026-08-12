@@ -21,68 +21,50 @@ These are the rules and known issues collected from operational experience.
 
 ## Install / upgrade
 
-The install script is `infrastructure/network-cilium/install.sh`. It handles
-fresh installs. When enabling Gateway API on an existing cluster, the manual
-steps below are required.
+Run `infrastructure/network-cilium/pre-apply.sh` to install Gateway API CRDs,
+then deploy the chart via kustomize
+(`kubectl kustomize --enable-helm infrastructure/network-cilium/ |
+kubectl apply -f -`). On a fresh cluster, run the kustomize apply twice —
+cilium-operator registers Cilium CRDs between the runs. When enabling Gateway
+API on an existing cluster, the manual steps below are required.
 
 ### Prerequisites
 
 - `kubeProxyReplacement=true` is **mandatory** for Gateway API. Without it the
   operator logs `Invoke failed: failed to create gateway controller` and crashes.
-- Gateway API CRDs **must** be installed before the Cilium upgrade:
-  ```bash
-  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
-  ```
-- **TLSRoute `v1alpha2` patch**: v1.5.1 CRD sets `v1alpha2: served=false`, but
-  Cilium 1.19.x operator requires it. After installing CRDs:
-  ```bash
-  kubectl patch crd tlsroutes.gateway.networking.k8s.io --type=json \
-    -p='[{"op": "replace", "path": "/spec/versions/1/served", "value": true}]'
-  ```
+- `pre-apply.sh` installs the Gateway API CRDs and applies the TLSRoute
+  `v1alpha2` served patch automatically. Why the patch: v1.5.1 CRD sets
+  `v1alpha2: served=false`, but the Cilium 1.19.x operator probes CRD versions
+  by presence (not the served flag) and would otherwise enable TLSRoute
+  support against an unserved version.
 
 ### LB-IPAM
 
 Gateway API requires a LoadBalancer IP for each Gateway. In bare-metal/libvirt
-environments, create a `CiliumLoadBalancerIPPool`:
-
-```bash
-kubectl apply -f - <<EOF
----
-{
-  apiVersion: "cilium.io/v2alpha1",
-  kind: "CiliumLoadBalancerIPPool",
-  metadata: {
-    name: "default",
-  },
-  spec: {
-    blocks: [{
-      cidr: "192.168.200.0/24",
-    }],
-  },
-}
-EOF
-```
+environments, the pool is defined in
+`infrastructure/network-cilium/loadbalancer-ippool.yaml`
+(`CiliumLoadBalancerIPPool`, CIDR `192.168.200.0/24`) and applied by the
+network-cilium kustomize apply.
 
 Note: `start`/`stop` fields on the pool block are **ignored** by Cilium 1.19.6.
 
 ### L2 announcements for external LB access
 
 In bare-metal environments without BGP, L2 announcements are needed for
-external hosts to reach LoadBalancer IPs:
+external hosts to reach LoadBalancer IPs. This repo configures it via the
+Cilium chart and kustomize resources:
 
-1. Enable in Cilium config:
-   ```bash
-   kubectl patch configmap cilium-config -n kube-system --type=json \
-     -p='[{"op": "add", "path": "/data/enable-l2-announcements", "value": "true"}]'
-   ```
-2. Add leases RBAC (`cilium upgrade` does not add it):
-   ```bash
-   kubectl patch clusterrole cilium --type=json -p='[
-     {"op": "add", "path": "/rules/-", "value": {"apiGroups": ["coordination.k8s.io"], "resources": ["leases"], "verbs": ["get","list","watch","create","update","delete"]}}
-   ]'
-   ```
-3. Create `CiliumL2AnnouncementPolicy` with the node interfaces (e.g. `^enp`).
-4. Restart Cilium agents.
+1. `l2announcements.enabled: true` in
+   `infrastructure/network-cilium/values.yaml` renders
+   `enable-l2-announcements` in cilium-config.
+2. The chart grants the leases RBAC automatically when L2 announcements are
+   enabled (5 verbs, no `watch` — verified sufficient for the L2 announcer's
+   leader election; the old install.sh patch that added `watch` is gone).
+3. `CiliumL2AnnouncementPolicy` is a kustomize resource
+   (`infrastructure/network-cilium/l2-announcement-policy.yaml`, interfaces
+   `^enp`).
+4. After a config change, restart agents:
+   `kubectl rollout restart ds/cilium -n kube-system`.
 
 ### Host route for hypervisor access
 
@@ -105,14 +87,15 @@ sudo nmcli connection up virbr0
 Other VMs on the same bridge don't need this — they ARP for LB IPs directly
 via the L2 announcements above.
 
-### cilium CLI version caveat
+### Version pinning
 
-`cilium upgrade` without `--version` uses the CLI's **built-in default**, not
-the currently running version or latest stable. Check with `cilium version` first:
+Cilium is deployed from this repo via Kustomize (`helmCharts`); the version is
+pinned in `infrastructure/network-cilium/kustomization.yaml`. Upgrade = bump
+the version there (check upstream releases), run
+`bash infrastructure/network-cilium/pre-apply.sh` and
+`kubectl kustomize --enable-helm infrastructure/network-cilium/ |
+kubectl apply -f -`, then
+`kubectl rollout restart ds/cilium -n kube-system` if the configmap changed.
 
-```bash
-# Shows: cilium image (default): v1.19.3, cilium image (stable): v1.19.4
-cilium version
-# Always specify --version to avoid accidental downgrade
-cilium upgrade --version 1.19.6 --set gatewayAPI.enabled=true --set kubeProxyReplacement=true
-```
+Do not run `cilium install`/`cilium upgrade` directly — the CLI manages the
+release via Helm and conflicts with kubectl-managed (kustomize) resources.
