@@ -1,13 +1,16 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-namespace: gpu-operator
-
-helmCharts:
-  - name: gpu-operator
-    repo: https://helm.ngc.nvidia.com/nvidia
-    version: "v26.3.3"
-    releaseName: gpu-operator
-    valuesFile: values.yaml
-
-resources:
-  - namespace.yaml
+---
+{
+  apiVersion: "kustomize.config.k8s.io/v1beta1",
+  kind: "Kustomization",
+  namespace: "gpu-operator",
+  helmCharts: [{
+    name: "gpu-operator",
+    repo: "https://helm.ngc.nvidia.com/nvidia",
+    version: "v26.3.3",
+    releaseName: "gpu-operator",
+    valuesFile: "values.yaml",
+  }],
+  resources: [
+    "namespace.yaml",
+  ],
+}

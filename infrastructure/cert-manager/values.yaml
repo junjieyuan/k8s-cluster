@@ -1,9 +1,12 @@
-# Install cert-manager CRDs; the chart does not install them by default.
-crds:
-  enabled: true
-
-# Use AliDNS (223.5.5.5) as recursive nameserver for DNS01 self-checks.
-# Default uses authoritative nameservers, which may not be reachable from
-# the cluster or may return stale NXDOMAIN during propagation.
-dns01RecursiveNameservers: "223.5.5.5:53"
-dns01RecursiveNameserversOnly: true
+---
+{
+  # Install cert-manager CRDs; the chart does not install them by default.
+  crds: {
+    enabled: true,
+  },
+  # Use AliDNS (223.5.5.5) as recursive nameserver for DNS01 self-checks.
+  # Default uses authoritative nameservers, which may not be reachable from
+  # the cluster or may return stale NXDOMAIN during propagation.
+  dns01RecursiveNameservers: "223.5.5.5:53",
+  dns01RecursiveNameserversOnly: true,
+}

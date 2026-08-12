@@ -1,24 +1,31 @@
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: nfs-csi
-  annotations:
-    storageclass.kubernetes.io/is-default-class: "true" # set as default when no other SC exists
-provisioner: nfs.csi.k8s.io
-allowVolumeExpansion: true
-parameters:
-  server: storage-001.k8s.junjie.pro
-  share: /                          # NFSv4 root mapping: the NFS server exports /var/nfs with fsid=0,
-                                     # making it the NFSv4 pseudofilesystem root. Clients mount "/"
-                                     # which NFSv4 maps to /var/nfs on the server. If the server
-                                     # export changes, update the fsid=0 export (not this value).
-                                     # See README "Important Notes".
-  subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}"    # organizes PVs by namespace/pvc
-reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
-mountOptions:
-  - nfsvers=4.2
-  - hard                            # hard mount prevents I/O errors on transient network blips
-  - rsize=524288
-  - wsize=524288                    # 512K r/w block size for throughput
-  - timeo=600
-  - retrans=2                       # 600 dS timeout, 2 retransmissions for network resilience
+---
+{
+  apiVersion: "storage.k8s.io/v1",
+  kind: "StorageClass",
+  metadata: {
+    name: "nfs-csi",
+    annotations: {
+      storageclass.kubernetes.io/is-default-class: "true", # set as default when no other SC exists
+    },
+  },
+  provisioner: "nfs.csi.k8s.io",
+  allowVolumeExpansion: true,
+  parameters: {
+    server: "storage-001.k8s.junjie.pro",
+    share: "/", # NFSv4 root mapping: the NFS server exports /var/nfs with fsid=0,
+    # making it the NFSv4 pseudofilesystem root. Clients mount "/"
+    # which NFSv4 maps to /var/nfs on the server. If the server
+    # export changes, update the fsid=0 export (not this value).
+    # See README "Important Notes".
+    subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}", # organizes PVs by namespace/pvc
+  },
+  reclaimPolicy: "Retain", # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
+  mountOptions: [
+    "nfsvers=4.2",
+    "hard", # hard mount prevents I/O errors on transient network blips
+    "rsize=524288",
+    "wsize=524288", # 512K r/w block size for throughput
+    "timeo=600",
+    "retrans=2", # 600 dS timeout, 2 retransmissions for network resilience
+  ],
+}

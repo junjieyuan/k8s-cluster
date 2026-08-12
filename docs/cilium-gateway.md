@@ -47,13 +47,19 @@ environments, create a `CiliumLoadBalancerIPPool`:
 
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: cilium.io/v2alpha1
-kind: CiliumLoadBalancerIPPool
-metadata:
-  name: default
-spec:
-  blocks:
-    - cidr: 192.168.200.0/24
+---
+{
+  apiVersion: "cilium.io/v2alpha1",
+  kind: "CiliumLoadBalancerIPPool",
+  metadata: {
+    name: "default",
+  },
+  spec: {
+    blocks: [{
+      cidr: "192.168.200.0/24",
+    }],
+  },
+}
 EOF
 ```
 

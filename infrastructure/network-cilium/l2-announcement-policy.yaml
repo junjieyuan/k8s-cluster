@@ -1,11 +1,18 @@
-apiVersion: cilium.io/v2alpha1
-kind: CiliumL2AnnouncementPolicy
-metadata:
-  name: default
-spec:
-  nodeSelector:
-    matchLabels: {}
-  interfaces:
-    - "^enp"
-  externalIPs: true
-  loadBalancerIPs: true
+---
+{
+  apiVersion: "cilium.io/v2alpha1",
+  kind: "CiliumL2AnnouncementPolicy",
+  metadata: {
+    name: "default",
+  },
+  spec: {
+    nodeSelector: {
+      matchLabels: {},
+    },
+    interfaces: [
+      "^enp",
+    ],
+    externalIPs: true,
+    loadBalancerIPs: true,
+  },
+}

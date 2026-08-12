@@ -90,6 +90,7 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 - FCOS QCOW2 image uploaded to libvirt storage pool (see step 1)
 - `kubeadm`, `kubectl` (for init/join scripts)
 - [Helm](https://helm.sh/) (for infrastructure deployments)
+- `yamlfmt` (google/yamlfmt) — formats YAML as KYAML (see Conventions)
 
 ## Usage
 
@@ -272,6 +273,26 @@ bash infrastructure/storage-nfs/install.sh --server <nfs-server>
 # ... etc — each install.sh supports --help for full options
 ```
 
+## Conventions
+
+### YAML is KYAML
+
+Every YAML file in this repo is written in **KYAML**, the flow-style YAML
+dialect proposed in [KEP 5295](https://www.kubernetes.dev/resources/keps/5295/):
+`---` header, `{}` for maps, `[]` for lists, double-quoted strings, trailing
+commas. KYAML is valid YAML, so `kubectl apply` and
+`kubectl kustomize --enable-helm` workflows are unchanged. Kubeadm configs
+keep their `${VAR}` placeholders — they are envsubst templates by design.
+
+Format with Google's `yamlfmt` (the repo-root `.yamlfmt` config enables the
+kyaml formatter):
+
+```bash
+yamlfmt -dry <file>   # preview without modifying
+yamlfmt <file>        # format in place
+yamlfmt -lint <dir>/  # enforce (CI-friendly)
+```
+
 ## Upgrades
 
 For replacing nodes with newer versions, see the guides in [`docs/`](docs/):
@@ -286,4 +307,3 @@ For replacing nodes with newer versions, see the guides in [`docs/`](docs/):
 - **Token expiry**: `kubeadm token create` tokens expire after 24 hours. Regenerate if needed.
 - **Hostname resolution**: If using a hostname for `--endpoint` (e.g. `control-plane.k8s.junjie.pro`), ensure it resolves on every node via DNS or `/etc/hosts`.
 - **NFSv4 + FCOS**: FCOS requires `fsid=0` on the NFS export to establish the NFSv4 pseudofilesystem root. Without it, NFSv4 clients silently fall back to NFSv3 because the server cannot traverse `/var` (separate bind-mounted filesystem on FCOS). With `fsid=0`, the export becomes the NFSv4 root — the CSI StorageClass must use `share: /` (not `/var/nfs`) since the mount path is relative to the pseudoroot. `subDir` subdirectories are created under the physical export path normally.
-

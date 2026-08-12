@@ -1,26 +1,32 @@
-provider:
-  name: cloudflare
-
-sources:
-  - crd
-
-domainFilters:
-  - junjie.pro
-
-policy: sync
-txtOwnerId: k8s-gw-junjie
-interval: 5m
-# Global default: every DNSEndpoint record is proxied (orange cloud). Per-record
-# overrides live in k8s-apps DNSEndpoints via providerSpecific with the full
-# annotation key external-dns.alpha.kubernetes.io/cloudflare-proxied and a
-# string value "true"/"false".
-extraArgs:
-  cloudflare-proxied: true
-
-# CF_API_TOKEN injected via env — secret managed by kustomize secretGenerator.
-env:
-  - name: CF_API_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: cloudflare-api-token
-        key: api-token
+---
+{
+  provider: {
+    name: "cloudflare",
+  },
+  sources: [
+    "crd",
+  ],
+  domainFilters: [
+    "junjie.pro",
+  ],
+  policy: "sync",
+  txtOwnerId: "k8s-gw-junjie",
+  interval: "5m",
+  # Global default: every DNSEndpoint record is proxied (orange cloud). Per-record
+  # overrides live in k8s-apps DNSEndpoints via providerSpecific with the full
+  # annotation key external-dns.alpha.kubernetes.io/cloudflare-proxied and a
+  # string value "true"/"false".
+  extraArgs: {
+    cloudflare-proxied: true,
+  },
+  # CF_API_TOKEN injected via env — secret managed by kustomize secretGenerator.
+  env: [{
+    name: "CF_API_TOKEN",
+    valueFrom: {
+      secretKeyRef: {
+        name: "cloudflare-api-token",
+        key: "api-token",
+      },
+    },
+  }],
+}

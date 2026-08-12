@@ -1,15 +1,24 @@
-apiVersion: kubeadm.k8s.io/v1beta4
-kind: JoinConfiguration
-discovery:
-  bootstrapToken:
-    apiServerEndpoint: "${ENDPOINT}"
-    token: "${TOKEN}"
-    caCertHashes:
-      - "${HASH}"
-nodeRegistration:
-  criSocket: unix:///var/run/crio/crio.sock
-  kubeletExtraArgs:
-    - name: "volume-plugin-dir"
-      value: "/var/lib/kubelet/volumeplugins"
-controlPlane:
-  certificateKey: "${CERTIFICATE_KEY}"
+---
+{
+  apiVersion: "kubeadm.k8s.io/v1beta4",
+  kind: "JoinConfiguration",
+  discovery: {
+    bootstrapToken: {
+      apiServerEndpoint: "${ENDPOINT}",
+      token: "${TOKEN}",
+      caCertHashes: [
+        "${HASH}",
+      ],
+    },
+  },
+  nodeRegistration: {
+    criSocket: "unix:///var/run/crio/crio.sock",
+    kubeletExtraArgs: [{
+      name: "volume-plugin-dir",
+      value: "/var/lib/kubelet/volumeplugins",
+    }],
+  },
+  controlPlane: {
+    certificateKey: "${CERTIFICATE_KEY}",
+  },
+}

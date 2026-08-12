@@ -1,0 +1,9 @@
+---
+{
+  # KYAML formatter (KEP 5295 dialect): flow-style maps/lists, double-quoted
+  # strings, trailing commas. See https://kubernetes.io/blog/2026/08/11/
+  # how-to-pretty-print-kubernetes-yaml-as-kyaml/ for the rationale.
+  formatter: {
+    type: "kyaml",
+  },
+}

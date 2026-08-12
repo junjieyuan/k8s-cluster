@@ -32,12 +32,39 @@ be idempotent — re-running them should result in no-op.
   `helm install` directly. Exception: Cilium uses `cilium` CLI for its
   complex multi-step setup (CRD patching, L2 announcement config).
 
-## No redundant defaults
+## YAML is KYAML
 
-No redundant defaults — omit fields that match Kubernetes or the pinned chart
-version's defaults (e.g. `volumeBindingMode: Immediate`, chart default
-`logLevel`), and keep only intentional overrides. Verify chart defaults
-against the cached chart (`infrastructure/*/charts/`) before dropping a value.
+Every `*.yaml` in this repo is written in **KYAML**, the flow-style YAML
+dialect from KEP 5295: `---` document headers, `{}` maps, `[]` lists,
+double-quoted strings, trailing commas. KYAML is valid YAML, so `kubectl`,
+Kustomize, and Helm consume it unchanged. Format with Google's `yamlfmt`
+using the repo-root `.yamlfmt` config (`formatter.type: kyaml`):
+
+```bash
+yamlfmt -dry <file>   # preview without modifying
+yamlfmt <file>        # format in place
+yamlfmt -lint <dir>/  # enforce
+```
+
+- **No redundant defaults** — omit fields that match Kubernetes or the
+  pinned chart version's defaults (e.g. `volumeBindingMode: Immediate`,
+  chart default `logLevel`), and keep only intentional overrides. Verify
+  chart defaults against the cached chart (`infrastructure/*/charts/`)
+  before dropping a value.
+- **Comments explain why, not what** — the manifest itself is the what; a
+  comment should capture the decision or constraint that isn't visible in
+  the YAML (e.g. why `reclaimPolicy: Retain`, why a pinned size).
+- **Validate chart value keys** — misspelled or wrongly nested values are
+  silently ignored by Helm. Check keys against the pinned chart version
+  (cached under `infrastructure/*/charts/`) before changing values files.
+- **Not YAML** — `.env*` files are dotenv input for Kustomize
+  `secretGenerator`, `*.ign` are generated Ignition configs, and vendored
+  Helm chart sources under gitignored `charts/` are third-party; none are
+  reformatted.
+
+Exception: kubeadm configs under `bootstrap/kubeadm/` are KYAML-formatted
+but keep their `${VARIABLE}` placeholders — they are envsubst sources, and
+KYAML's double-quoted strings preserve substitution.
 
 ## Component versions
 
@@ -181,7 +208,8 @@ Storage server templates do NOT use this — they don't run cri-o or kubelet.
 
 `kubeadm-init.yaml`, `kubeadm-join-worker.yaml`, `kubeadm-join-control-plane.yaml`
 contain `${VARIABLE}` placeholders. They are NOT directly usable — scripts
-pipe them through `envsubst` into temp files (cleaned up via `trap`).
+pipe them through `envsubst` into temp files (cleaned up via `trap`). They are
+KYAML-formatted (see "YAML is KYAML") — re-run `yamlfmt` after editing.
 
 ## Hardcoded that shouldn't be changed
 
