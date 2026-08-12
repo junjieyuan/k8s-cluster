@@ -53,26 +53,25 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
     │   ├── loadbalancer-ippool.yaml         # [vm]  LB-IPAM pool template for Gateway API
     │   └── l2-announcement-policy.yaml      # [vm]  L2 ARP responder for external LB access
     ├── storage-nfs/
-    │   ├── install.sh                      # [vm]  Deploy csi-driver-nfs via Helm
-    │   └── storage-class.yaml              # [vm]  NFS StorageClass definition
+    │   ├── kustomization.yaml              # csi-driver-nfs chart (helmCharts)
+    │   └── storage-class.yaml              # Default NFS StorageClass
     ├── gpu-operator/
-    │   ├── install.sh                      # [vm]  Deploy NVIDIA GPU Operator via Helm
-    │   └── values.yaml                     # [vm]  Helm values (host driver reuse, CDI)
+    │   ├── kustomization.yaml              # GPU operator chart (helmCharts)
+    │   ├── namespace.yaml                  # gpu-operator namespace
+    │   └── values.yaml                     # Helm values (host driver reuse, CDI)
     ├── cert-manager/
-    │   ├── install.sh                      # [vm]  Deploy cert-manager via Helm
-    │   ├── values.yaml                     # [vm]  Helm values (CRD management, DNS config)
-    │   ├── clusterissuer.yaml              # [vm]  Let's Encrypt production ClusterIssuer template
-    │   └── clusterissuer-staging.yaml      # [vm]  Let's Encrypt staging ClusterIssuer template
+    │   ├── kustomization.yaml              # cert-manager chart (helmCharts)
+    │   ├── values.yaml                     # Helm values (CRD management, DNS config)
+    │   ├── namespace.yaml                  # cert-manager namespace
+    │   └── clusterissuer.yaml              # Let's Encrypt production ClusterIssuer
     ├── external-dns/
-    │   ├── install.sh                      # [vm]  Deploy external-dns for Cloudflare DNS sync
-    │   ├── deployment.yaml                 # [vm]  ExternalDNS Deployment template
-    │   ├── namespace.yaml                  # [vm]  Namespace
-    │   ├── serviceaccount.yaml             # [vm]  ServiceAccount
-    │   ├── clusterrole.yaml                # [vm]  ClusterRole (Gateway API + core resources)
-    │   └── clusterrolebinding.yaml         # [vm]  ClusterRoleBinding
+    │   ├── kustomization.yaml              # external-dns chart (helmCharts)
+    │   ├── values.yaml                     # Helm values (Cloudflare, proxied default)
+    │   ├── namespace.yaml                  # external-dns namespace
+    │   └── deploy.sh                       # [vm]  DNSEndpoint CRD bootstrap + apply
     └── metrics-server/
-        ├── install.sh                      # [vm]  Deploy metrics-server via Helm
-        └── values.yaml                     # [vm]  Helm values (kubelet-insecure-tls)
+        ├── kustomization.yaml              # metrics-server chart (helmCharts)
+        └── values.yaml                     # Helm values (kubelet-insecure-tls)
 ```
 
 ### Network CIDRs
@@ -269,8 +268,8 @@ Copy `infrastructure/` to a control plane node and deploy cluster-level services
 scp -r infrastructure core@<control-plane-ip>:~/
 ssh core@<control-plane-ip>
 bash infrastructure/network-cilium/install.sh
-bash infrastructure/storage-nfs/install.sh --server <nfs-server>
-# ... etc — each install.sh supports --help for full options
+kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f -
+# ... each component: kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -
 ```
 
 ## Conventions
