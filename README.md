@@ -48,13 +48,13 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │   ├── gpu-worker-upgrade.md                 # GPU worker node upgrade guide
 │   └── worker-upgrade.md                     # Worker node upgrade guide
 └── infrastructure/
-    ├── network-cilium/
+    ├── cilium/
     │   ├── pre-apply.sh                    # [host] Gateway API CRD bootstrap (before apply)
     │   ├── kustomization.yaml              # Cilium chart (helmCharts, pinned version)
     │   ├── values.yaml                     # Chart overrides (Gateway API, LB-IPAM, L2)
     │   ├── loadbalancer-ippool.yaml        # LB-IPAM pool (CIDR 192.168.200.0/24)
     │   └── l2-announcement-policy.yaml     # L2 ARP responder for external LB access
-    ├── storage-nfs/
+    ├── csi-driver-nfs/
     │   ├── kustomization.yaml              # csi-driver-nfs chart (helmCharts)
     │   └── storage-class.yaml              # Default NFS StorageClass
     ├── gpu-operator/
@@ -269,8 +269,8 @@ Copy `infrastructure/` to a control plane node and deploy cluster-level services
 ```bash
 scp -r infrastructure core@<control-plane-ip>:~/
 ssh core@<control-plane-ip>
-bash infrastructure/network-cilium/pre-apply.sh
-kubectl kustomize --enable-helm infrastructure/network-cilium/ | kubectl apply -f -
+bash infrastructure/cilium/pre-apply.sh
+kubectl kustomize --enable-helm infrastructure/cilium/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f -
 # external-dns: run deploy.sh first (DNSEndpoint CRD from the cached chart)
 # ... each component: kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -

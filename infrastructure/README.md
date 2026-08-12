@@ -6,7 +6,7 @@ configuration details.
 
 ## Components
 
-### network-cilium
+### cilium
 
 Cilium CNI with Gateway API + kube-proxy replacement. The chart, LB-IPAM pool,
 and L2 policy are deployed via Kustomize (version pinned in
@@ -15,8 +15,8 @@ bootstraps Gateway API CRDs from the upstream release URL. Cilium CRDs are
 registered by cilium-operator at startup — no cilium CLI needed.
 
 ```bash
-bash infrastructure/network-cilium/pre-apply.sh
-kubectl kustomize --enable-helm infrastructure/network-cilium/ | kubectl apply -f -
+bash infrastructure/cilium/pre-apply.sh
+kubectl kustomize --enable-helm infrastructure/cilium/ | kubectl apply -f -
 # fresh cluster: run the apply twice — operator registers Cilium CRDs between runs
 ```
 
@@ -58,8 +58,8 @@ kubectl kustomize --enable-helm infrastructure/gpu-operator/ | kubectl apply -f 
 kubectl kustomize --enable-helm infrastructure/metrics-server/ | kubectl apply -f -
 ```
 
-### storage-nfs
+### csi-driver-nfs
 
 ```bash
-kubectl kustomize --enable-helm infrastructure/storage-nfs/ | kubectl apply -f -
+kubectl kustomize --enable-helm infrastructure/csi-driver-nfs/ | kubectl apply -f -
 ```

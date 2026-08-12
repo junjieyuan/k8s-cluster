@@ -123,7 +123,7 @@ docs/                           # Detailed reference: upgrade guides, known issu
 ## Shell scripts (bootstrap + infrastructure)
 
 The only shell scripts in this repo are the bootstrap scripts plus two
-kubectl-based CRD bootstrap helpers: `infrastructure/network-cilium/pre-apply.sh`
+kubectl-based CRD bootstrap helpers: `infrastructure/cilium/pre-apply.sh`
 and `infrastructure/external-dns/deploy.sh`. Infrastructure components use
 `kubectl kustomize`.
 
@@ -145,7 +145,7 @@ and `infrastructure/external-dns/deploy.sh`. Infrastructure components use
         bootstrap/vm-deploy.sh (discovers types under bootstrap/)
 [vm]    bootstrap/kubeadm/init-node.sh, bootstrap/kubeadm/init-control-plane.sh,
         bootstrap/kubeadm/join-worker.sh, bootstrap/kubeadm/join-control-plane.sh
-[host]  infrastructure/network-cilium/pre-apply.sh, external-dns/deploy.sh
+[host]  infrastructure/cilium/pre-apply.sh, external-dns/deploy.sh
         (CRD bootstrap — any machine with kubectl admin access)
 [host]  infrastructure/*/ (kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -)
 ```
@@ -167,11 +167,11 @@ kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f 
 kubectl kustomize --enable-helm infrastructure/external-dns/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/gpu-operator/ | kubectl apply -f -
 kubectl kustomize --enable-helm infrastructure/metrics-server/ | kubectl apply -f -
-kubectl kustomize --enable-helm infrastructure/storage-nfs/ | kubectl apply -f -
+kubectl kustomize --enable-helm infrastructure/csi-driver-nfs/ | kubectl apply -f -
 
-# network-cilium: pre-apply Gateway API CRDs, then the standard kustomize apply
-bash infrastructure/network-cilium/pre-apply.sh
-kubectl kustomize --enable-helm infrastructure/network-cilium/ | kubectl apply -f -
+# cilium: pre-apply Gateway API CRDs, then the standard kustomize apply
+bash infrastructure/cilium/pre-apply.sh
+kubectl kustomize --enable-helm infrastructure/cilium/ | kubectl apply -f -
 # fresh cluster: run the apply twice (operator registers Cilium CRDs between runs)
 ```
 
@@ -228,10 +228,10 @@ KYAML-formatted (see "YAML is KYAML") — re-run `yamlfmt` after editing.
 
 - `control-plane.k8s.junjie.pro:6443` — override with `--endpoint`
 - `172.16.0.0/12` — kubeadm `--pod-cidr`; Cilium pod CIDR via
-  `ipam.operator.clusterPoolIPv4PodCIDRList` in `network-cilium/values.yaml`
+  `ipam.operator.clusterPoolIPv4PodCIDRList` in `cilium/values.yaml`
 - `10.96.0.0/12` — kubeadm service subnet
 - `192.168.200.0/24` — LB-IPAM pool CIDR, set in
-  `network-cilium/loadbalancer-ippool.yaml`
+  `cilium/loadbalancer-ippool.yaml`
 - Package versions via `.env` vars or CLI flags
 - `K8S_PREINSTALLED_PACKAGES`, `K8S_HOSTNAME` — set in `.env`
 - `K8S_CPUS`, `K8S_MEMORY`, `K8S_DISK_SIZE` — set in `.env`, override with

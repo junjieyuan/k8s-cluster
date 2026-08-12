@@ -21,9 +21,9 @@ These are the rules and known issues collected from operational experience.
 
 ## Install / upgrade
 
-Run `infrastructure/network-cilium/pre-apply.sh` to install Gateway API CRDs,
+Run `infrastructure/cilium/pre-apply.sh` to install Gateway API CRDs,
 then deploy the chart via kustomize
-(`kubectl kustomize --enable-helm infrastructure/network-cilium/ |
+(`kubectl kustomize --enable-helm infrastructure/cilium/ |
 kubectl apply -f -`). On a fresh cluster, run the kustomize apply twice —
 cilium-operator registers Cilium CRDs between the runs. When enabling Gateway
 API on an existing cluster, the manual steps below are required.
@@ -42,9 +42,9 @@ API on an existing cluster, the manual steps below are required.
 
 Gateway API requires a LoadBalancer IP for each Gateway. In bare-metal/libvirt
 environments, the pool is defined in
-`infrastructure/network-cilium/loadbalancer-ippool.yaml`
+`infrastructure/cilium/loadbalancer-ippool.yaml`
 (`CiliumLoadBalancerIPPool`, CIDR `192.168.200.0/24`) and applied by the
-network-cilium kustomize apply.
+cilium kustomize apply.
 
 ### L2 announcements for external LB access
 
@@ -53,13 +53,13 @@ external hosts to reach LoadBalancer IPs. This repo configures it via the
 Cilium chart and kustomize resources:
 
 1. `l2announcements.enabled: true` in
-   `infrastructure/network-cilium/values.yaml` renders
+   `infrastructure/cilium/values.yaml` renders
    `enable-l2-announcements` in cilium-config.
 2. The chart grants the leases RBAC automatically when L2 announcements are
    enabled (5 verbs, no `watch` — verified sufficient for the L2 announcer's
    leader election; the CLI-era patch that added `watch` is gone).
 3. `CiliumL2AnnouncementPolicy` is a kustomize resource
-   (`infrastructure/network-cilium/l2-announcement-policy.yaml`, interfaces
+   (`infrastructure/cilium/l2-announcement-policy.yaml`, interfaces
    `^enp`).
 4. After a config change, restart agents:
    `kubectl rollout restart ds/cilium -n kube-system`.
@@ -88,10 +88,10 @@ via the L2 announcements above.
 ### Version pinning
 
 Cilium is deployed from this repo via Kustomize (`helmCharts`); the version is
-pinned in `infrastructure/network-cilium/kustomization.yaml`. Upgrade = bump
+pinned in `infrastructure/cilium/kustomization.yaml`. Upgrade = bump
 the version there (check upstream releases), run
-`bash infrastructure/network-cilium/pre-apply.sh` and
-`kubectl kustomize --enable-helm infrastructure/network-cilium/ |
+`bash infrastructure/cilium/pre-apply.sh` and
+`kubectl kustomize --enable-helm infrastructure/cilium/ |
 kubectl apply -f -`, then
 `kubectl rollout restart ds/cilium -n kube-system` if the configmap changed.
 

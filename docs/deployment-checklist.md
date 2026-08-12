@@ -57,7 +57,7 @@ This applies to new components and upgrades alike.
 - [ ] `pre-apply.sh` run before the first deploy (Gateway API CRDs from the
   upstream release URL).
 - [ ] Chart rendered with `kubectl kustomize --enable-helm
-  infrastructure/network-cilium/`; version pinned in `kustomization.yaml`.
+  infrastructure/cilium/`; version pinned in `kustomization.yaml`.
 - [ ] `kubectl diff` against live shows no unexpected spec changes.
 - [ ] Clustered changes (e.g. operator restart after config patch) use
   `kubectl rollout restart` and wait for availability.

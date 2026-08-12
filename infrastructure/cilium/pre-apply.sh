@@ -13,7 +13,7 @@ Bootstrap Gateway API CRDs before the Cilium kustomize apply.
 - Cilium's own CRDs are registered by cilium-operator at startup — no cilium CLI.
 
 Then deploy:
-  kubectl kustomize --enable-helm <repo>/infrastructure/network-cilium/ | kubectl apply -f -
+  kubectl kustomize --enable-helm <repo>/infrastructure/cilium/ | kubectl apply -f -
 On a fresh cluster, run the apply twice — the operator registers Cilium CRDs
 between the runs (see docs/cilium-gateway.md).
 
