@@ -46,9 +46,6 @@ environments, the pool is defined in
 (`CiliumLoadBalancerIPPool`, CIDR `192.168.200.0/24`) and applied by the
 network-cilium kustomize apply.
 
-Note: `start`/`stop` range blocks are supported since Cilium 1.20; this pool
-uses a plain CIDR.
-
 ### L2 announcements for external LB access
 
 In bare-metal environments without BGP, L2 announcements are needed for
