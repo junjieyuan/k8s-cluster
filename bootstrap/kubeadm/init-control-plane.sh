@@ -8,20 +8,17 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KUBEADM_CONFIG="${SCRIPT_DIR}/kubeadm-init.yaml"
-CILIUM_SCRIPT="${SCRIPT_DIR}/../../infrastructure/network-cilium/install.sh"
 
 usage() {
     cat <<'EOF'
 Usage: init-control-plane.sh [OPTIONS]
 
-Bootstrap a Kubernetes control plane with kubeadm and optionally install Cilium CNI.
+Bootstrap a Kubernetes control plane with kubeadm.
 
 Options:
   --endpoint HOST:PORT  API server endpoint (default: control-plane.k8s.junjie.pro:6443)
   --config PATH         kubeadm init config template (default: bootstrap/kubeadm/kubeadm-init.yaml)
   --configure-kubectl   Copy admin.conf to ~/.kube/config after init
-  --install-cni         Run infrastructure/network-cilium/install.sh after init
-  --cni-version VER    Cilium version (default: 1.19.6)
   --pod-cidr CIDR       Pod IPv4 CIDR (default: 172.16.0.0/12)
   --dry-run             Print commands without executing
   --help                Show this help
@@ -30,8 +27,6 @@ EOF
 }
 
 CONFIGURE_KUBECTL=false
-INSTALL_CNI=false
-CNI_VERSION="1.19.6"
 POD_CIDR="172.16.0.0/12"
 CONTROL_PLANE_ENDPOINT="control-plane.k8s.junjie.pro:6443"
 DRY_RUN=false
@@ -41,8 +36,6 @@ while [[ $# -gt 0 ]]; do
         --config)            KUBEADM_CONFIG="$2"; shift 2 ;;
         --endpoint)          CONTROL_PLANE_ENDPOINT="$2"; shift 2 ;;
         --configure-kubectl) CONFIGURE_KUBECTL=true;  shift ;;
-        --install-cni)       INSTALL_CNI=true;         shift ;;
-        --cni-version)       CNI_VERSION="$2";          shift 2 ;;
         --pod-cidr)          POD_CIDR="$2";             shift 2 ;;
         --dry-run)           DRY_RUN=true;              shift ;;
         --help)              usage 0 ;;
@@ -69,9 +62,6 @@ if $DRY_RUN; then
         echo "  cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config"
         echo "  chown \$(id -u):\$(id -g) \$HOME/.kube/config"
     fi
-    if $INSTALL_CNI; then
-        echo "  $CILIUM_SCRIPT --version $CNI_VERSION --cidr $POD_CIDR"
-    fi
     exit 0
 fi
 
@@ -92,13 +82,4 @@ else
     echo "  mkdir -p \$HOME/.kube" >&2
     echo "  cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config" >&2
     echo "  chown \$(id -u):\$(id -g) \$HOME/.kube/config" >&2
-fi
-
-if $INSTALL_CNI; then
-    echo "Installing Cilium CNI..." >&2
-    bash "$CILIUM_SCRIPT" --version "$CNI_VERSION" --cidr "$POD_CIDR"
-else
-    echo "" >&2
-    echo "To install Cilium CNI, run:" >&2
-    echo "  bash $CILIUM_SCRIPT" >&2
 fi

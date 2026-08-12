@@ -237,7 +237,6 @@ KYAML-formatted (see "YAML is KYAML") — re-run `yamlfmt` after editing.
 - `K8S_CPUS`, `K8S_MEMORY`, `K8S_DISK_SIZE` — set in `.env`, override with
   `--cpus`/`--memory`/`--disk-size`
 - `--no-blockpull` — skip backing file pull after `virt-install`
-- `--install-cni` / `--cni-version` — auto-install Cilium after `kubeadm init`
 - `--dry-run` — available on most scripts
 - Infrastructure components pin versions in `kustomization.yaml`
   (`helmCharts[].version` or `images.newTag`)

@@ -59,7 +59,7 @@ Cilium chart and kustomize resources:
    `enable-l2-announcements` in cilium-config.
 2. The chart grants the leases RBAC automatically when L2 announcements are
    enabled (5 verbs, no `watch` — verified sufficient for the L2 announcer's
-   leader election; the old install.sh patch that added `watch` is gone).
+   leader election; the CLI-era patch that added `watch` is gone).
 3. `CiliumL2AnnouncementPolicy` is a kustomize resource
    (`infrastructure/network-cilium/l2-announcement-policy.yaml`, interfaces
    `^enp`).

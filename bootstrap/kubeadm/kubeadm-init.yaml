@@ -16,7 +16,7 @@
   kind: "ClusterConfiguration",
   controlPlaneEndpoint: "${CONTROL_PLANE_ENDPOINT}", # substituted at runtime; default: control-plane.k8s.junjie.pro:6443
   networking: {
-    podSubnet: "${POD_CIDR}", # must match the Cilium install --cidr value
+    podSubnet: "${POD_CIDR}", # must match ipam.operator.clusterPoolIPv4PodCIDRList (infrastructure/network-cilium/values.yaml)
     serviceSubnet: "10.96.0.0/12",
   },
   controllerManager: {

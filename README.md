@@ -35,7 +35,7 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │   │   └── .env.example                    # [host] Configuration template
 │   └── kubeadm/
 │       ├── init-node.sh                    # [vm]  Kernel modules, sysctl, disable zram swap, enable CRI-O/kubelet
-│       ├── init-control-plane.sh           # [vm]  kubeadm init + firewalld + optional Cilium install
+│       ├── init-control-plane.sh           # [vm]  kubeadm init + optional kubectl setup
 │       ├── join-worker.sh                  # [vm]  kubeadm join for worker nodes
 │       ├── join-control-plane.sh           # [vm]  kubeadm join for control plane nodes
 │       ├── kubeadm-init.yaml               # [vm]  kubeadm InitConfiguration + ClusterConfiguration
@@ -199,9 +199,9 @@ ssh core@<vm-ip>
 
 ```bash
 bash kubeadm/init-node.sh
-bash kubeadm/init-control-plane.sh --configure-kubectl --install-cni
+bash kubeadm/init-control-plane.sh --configure-kubectl
 # Or with a custom endpoint:
-# bash kubeadm/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl --install-cni
+# bash kubeadm/init-control-plane.sh --endpoint 192.168.122.100:6443 --configure-kubectl
 ```
 
 > **Note**: Use the VM's IP as the endpoint, and update DNS/hosts:
