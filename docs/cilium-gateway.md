@@ -32,11 +32,11 @@ API on an existing cluster, the manual steps below are required.
 
 - `kubeProxyReplacement=true` is **mandatory** for Gateway API. Without it the
   operator logs `Invoke failed: failed to create gateway controller` and crashes.
-- `pre-apply.sh` installs the Gateway API CRDs and applies the TLSRoute
-  `v1alpha2` served patch automatically. Why the patch: v1.5.1 CRD sets
-  `v1alpha2: served=false`, but the Cilium 1.19.x operator probes CRD versions
-  by presence (not the served flag) and would otherwise enable TLSRoute
-  support against an unserved version.
+- `pre-apply.sh` installs the Gateway API v1.6.1 CRDs (Standard channel).
+  Cilium 1.20 requires Gateway API v1.6.1 — TLSRoute graduated to `v1` and is
+  served by the Standard CRDs, so the `v1alpha2` served patch from the 1.19.x
+  era is gone. The Experimental channel is only needed for existing `v1alpha2`
+  TLSRoute objects, which this cluster does not use.
 
 ### LB-IPAM
 
@@ -46,7 +46,8 @@ environments, the pool is defined in
 (`CiliumLoadBalancerIPPool`, CIDR `192.168.200.0/24`) and applied by the
 network-cilium kustomize apply.
 
-Note: `start`/`stop` fields on the pool block are **ignored** by Cilium 1.19.6.
+Note: `start`/`stop` range blocks are supported since Cilium 1.20; this pool
+uses a plain CIDR.
 
 ### L2 announcements for external LB access
 

@@ -33,9 +33,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-for bin in kubectl jq; do
-    command -v "$bin" >/dev/null 2>&1 || { echo "Error: $bin not found" >&2; exit 1; }
-done
+command -v kubectl >/dev/null 2>&1 || { echo "Error: kubectl not found" >&2; exit 1; }
 
 kubectl cluster-info >/dev/null 2>&1 || {
     echo "Error: cannot access Kubernetes cluster. Check that kubectl is configured." >&2
@@ -43,27 +41,16 @@ kubectl cluster-info >/dev/null 2>&1 || {
 }
 
 # Gateway API CRDs BEFORE Cilium — the operator requires them at startup.
-# Cilium 1.19 supports v1.5.1 CRDs with the deprecated v1alpha2 TLSRoute re-enabled:
-# the operator probes CRD versions by presence (not the served flag) and would
-# otherwise enable TLSRoute support against an unserved version.
-GATEWAY_API_URL="https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml"
+# Cilium 1.20 requires Gateway API v1.6.1 (TLSRoute graduated to v1, served by
+# the Standard channel). The Experimental channel additionally serves the
+# deprecated v1alpha2/v1alpha3 — only needed for existing v1alpha2 TLSRoute
+# objects, which this cluster does not use.
+GATEWAY_API_URL="https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/standard-install.yaml"
 echo "Installing Gateway API CRDs..." >&2
 if $DRY_RUN; then
     echo "DRY-RUN: kubectl apply -f $GATEWAY_API_URL"
 else
     kubectl apply -f "$GATEWAY_API_URL"
-fi
-
-echo "Patching TLSRoute CRD for v1alpha2 compatibility..." >&2
-if ! $DRY_RUN; then
-    TLS_IDX=$(kubectl get crd tlsroutes.gateway.networking.k8s.io -o json | \
-        jq -r '.spec.versions | to_entries[] | select(.value.name == "v1alpha2") | .key')
-    if [[ -n "$TLS_IDX" ]]; then
-        kubectl patch crd tlsroutes.gateway.networking.k8s.io --type=json \
-            -p="[{\"op\": \"replace\", \"path\": \"/spec/versions/${TLS_IDX}/served\", \"value\": true}]"
-    else
-        echo "Warning: v1alpha2 not found in TLSRoute CRD versions — patch may no longer be needed." >&2
-    fi
 fi
 
 echo "Done. Deploy with:" >&2

@@ -1,5 +1,6 @@
 ---
 {
+  upgradeCompatibility: "1.19", # 1.20 upgrade guide: keep 1.19 defaults (file-based Envoy xDS) during minor upgrade; drop once settled to adopt ADS
   gatewayAPI: {
     enabled: true,
   },
