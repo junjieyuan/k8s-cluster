@@ -32,6 +32,13 @@ be idempotent — re-running them should result in no-op.
   `helm install` directly. Exception: Cilium uses `cilium` CLI for its
   complex multi-step setup (CRD patching, L2 announcement config).
 
+## No redundant defaults
+
+No redundant defaults — omit fields that match Kubernetes or the pinned chart
+version's defaults (e.g. `volumeBindingMode: Immediate`, chart default
+`logLevel`), and keep only intentional overrides. Verify chart defaults
+against the cached chart (`infrastructure/*/charts/`) before dropping a value.
+
 ## Component versions
 
 - **Always target latest stable** — pin explicit versions, check upstream

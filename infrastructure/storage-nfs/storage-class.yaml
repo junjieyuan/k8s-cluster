@@ -15,7 +15,6 @@ parameters:
                                      # See README "Important Notes".
   subDir: "${pvc.metadata.namespace}/${pvc.metadata.name}"    # organizes PVs by namespace/pvc
 reclaimPolicy: Retain                # Retain preserves data on PVC deletion; use Delete for ephemeral workloads
-volumeBindingMode: Immediate
 mountOptions:
   - nfsvers=4.2
   - hard                            # hard mount prevents I/O errors on transient network blips
