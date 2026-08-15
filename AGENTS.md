@@ -269,6 +269,7 @@ placeholders), and TLS certificates.
 
 - Atomic commits with conventional prefixes: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
 - Each commit changes one logical concern
+- Wrap the commit message subject at ~50 chars and body lines at ~72 chars
 
 ## Image provisioning order
 
