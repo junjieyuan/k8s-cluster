@@ -54,13 +54,29 @@ fi
 # Load variables
 set -a; source "$ENV_FILE"; set +a
 
+# Render the ssh_authorized_keys list from K8S_SSH_PUB_KEYS (multi-line, one
+# key per line). envsubst cannot expand one variable into multiple YAML list
+# items, so build the pre-indented block here and substitute it whole.
+K8S_SSH_KEYS_BLOCK=""
+while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"   # ltrim (also catches stray \r)
+    line="${line%"${line##*[![:space:]]}"}"   # rtrim
+    [[ -n "$line" ]] && K8S_SSH_KEYS_BLOCK+="        - $line"$'\n'
+done <<< "${K8S_SSH_PUB_KEYS:-}"
+K8S_SSH_KEYS_BLOCK="${K8S_SSH_KEYS_BLOCK%$'\n'}"
+if [[ -z "$K8S_SSH_KEYS_BLOCK" ]]; then
+    echo "Error: No SSH public keys configured. Set K8S_SSH_PUB_KEYS in .env (one key per line)." >&2
+    exit 1
+fi
+export K8S_SSH_KEYS_BLOCK
+
 # Auto-extract all ${VAR} references from the template and build envsubst arg.
 # This avoids hard-coding variable names per type (e.g. K8S_NFS_SUBNET is
 # specific to storage-server).
 ENVSUBST_VARS=$(grep -o '\${[A-Z_][A-Z_0-9]*}' "$TEMPLATE" | sort -u | sed 's/^\${/\$/; s/}$//' | paste -sd ' ' -)
 
 # Validate required vars (universal across all types)
-REQUIRED_VARS=("K8S_PASSWORD_HASH" "K8S_SSH_PUB_KEY" "K8S_HOSTNAME" "K8S_PREINSTALLED_PACKAGES")
+REQUIRED_VARS=("K8S_PASSWORD_HASH" "K8S_HOSTNAME" "K8S_PREINSTALLED_PACKAGES")
 for var in "${REQUIRED_VARS[@]}"; do
     if [[ -z "${!var:-}" ]]; then
         echo "Error: Required variable $var is not set in .env" >&2

@@ -5,7 +5,7 @@ passwd:
     - name: core
       password_hash: ${K8S_PASSWORD_HASH}
       ssh_authorized_keys:
-        - ${K8S_SSH_PUB_KEY}
+${K8S_SSH_KEYS_BLOCK}
 storage:
   files:
     - path: /etc/hostname

@@ -114,14 +114,14 @@ bash bootstrap/vm-image-upload.sh fedora-coreos-*.qcow2
 cp bootstrap/k8s-node/.env.example bootstrap/k8s-node/.env
 # Edit .env:
 #   K8S_PASSWORD_HASH=<run: openssl passwd -6>
-#   K8S_SSH_PUB_KEY=<your public key>
+#   K8S_SSH_PUB_KEYS=<one key per line, multi-line value>
 #   Other vars (K8S_HOSTNAME, K8S_PREINSTALLED_PACKAGES) have defaults
 
 # For GPU workers (optional)
 cp bootstrap/k8s-gpu-node/.env.example bootstrap/k8s-gpu-node/.env
 # Edit .env:
 #   K8S_PASSWORD_HASH=<run: openssl passwd -6>
-#   K8S_SSH_PUB_KEY=<your public key>
+#   K8S_SSH_PUB_KEYS=<one key per line, multi-line value>
 #   K8S_GPU_DEVICES="0000:01:00.0 0000:01:00.1"  # lspci -nn | grep -i nvidia
 #   K8S_VIRTIOFS_SOURCE="/home/<user>/.cache/huggingface/hub"
 
@@ -129,7 +129,7 @@ cp bootstrap/k8s-gpu-node/.env.example bootstrap/k8s-gpu-node/.env
 cp bootstrap/storage-server/.env.example bootstrap/storage-server/.env
 # Edit .env:
 #   K8S_PASSWORD_HASH=<run: openssl passwd -6>
-#   K8S_SSH_PUB_KEY=<your public key>
+#   K8S_SSH_PUB_KEYS=<one key per line, multi-line value>
 ```
 
 #### 3. Build Ignition Config

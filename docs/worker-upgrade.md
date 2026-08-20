@@ -45,7 +45,7 @@ sudo kubeadm token create --print-join-command
 ```bash
 # 复制并编辑 .env
 cp bootstrap/k8s-node/.env.example bootstrap/k8s-node/.env
-# 填写 K8S_PASSWORD_HASH、K8S_SSH_PUB_KEY
+# 填写 K8S_PASSWORD_HASH、K8S_SSH_PUB_KEYS（多行，每行一个公钥）
 # 设置 K8S_HOSTNAME=<new-node-hostname>
 ```
 

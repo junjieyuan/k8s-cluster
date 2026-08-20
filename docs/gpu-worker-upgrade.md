@@ -93,7 +93,7 @@ sudo virsh undefine --domain <old-gpu-node> \
 cp bootstrap/k8s-gpu-node/.env.example bootstrap/k8s-gpu-node/.env
 # 编辑 .env：
 #   K8S_PASSWORD_HASH=<openssl passwd -6 输出>
-#   K8S_SSH_PUB_KEY=<公钥>
+#   K8S_SSH_PUB_KEYS=<多行，每行一个公钥>
 #   K8S_HOSTNAME=<new-gpu-node-hostname>
 #   K8S_GPU_DEVICES="<PCI 地址>"    # 与旧节点相同，旧 VM 已销毁故可用
 #   K8S_VIRTIOFS_SOURCE="<host 模型缓存路径>"
