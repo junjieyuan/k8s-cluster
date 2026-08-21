@@ -127,7 +127,3 @@ systemd:
 
     - name: firewalld.service
       mask: true
-# TODO: Remove this when https://bugzilla.redhat.com/show_bug.cgi?id=2477939 is resolved.
-kernel_arguments:
-  should_exist:
-    - enforcing=0

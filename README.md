@@ -21,12 +21,12 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 │   ├── k8s-node/
 │   │   ├── build.sh                        # [host] Compile Butane template -> Ignition config
 │   │   ├── deploy.sh                       # [host] Type-specific deploy (sourced by vm-deploy.sh)
-│   │   ├── node.bu.tmpl                    # [host] Butane template (user, hostname, kernel, packages)
+│   │   ├── node.bu.tmpl                    # [host] Butane template (user, hostname, packages)
 │   │   └── .env.example                    # [host] Configuration template
 │   ├── k8s-gpu-node/
 │   │   ├── build.sh                        # [host] Compile Butane template -> Ignition config
 │   │   ├── deploy.sh                       # [host] GPU-specific deploy (PCI passthrough, virtiofs)
-│   │   ├── gpu-worker.bu.tmpl              # [host] Butane template (user, hostname, kernel)
+│   │   ├── gpu-worker.bu.tmpl              # [host] Butane template (user, hostname)
 │   │   └── .env.example                    # [host] Configuration template (GPU PCI, virtiofs)
 │   ├── storage-server/
 │   │   ├── build.sh                        # [host] Compile storage Butane template -> Ignition config

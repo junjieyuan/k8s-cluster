@@ -202,15 +202,6 @@ install (1 reboot). GPU PCI devices, virtiofs, `cpu=host-passthrough`, and
 `memoryBacking` are configured in the domain XML before first boot via
 `deploy_prepare_domain_xml` — no post-boot reconfiguration needed.
 
-### SELinux enforcing=0 on k8s nodes
-
-Both `k8s-node/node.bu.tmpl` and `k8s-gpu-node/gpu-worker.bu.tmpl` set
-`kernel_arguments.should_exist: [enforcing=0]` to disable SELinux enforcement.
-This is a workaround for cri-o `execmem` AVC denial on kernel 7.x with
-composefs. See https://bugzilla.redhat.com/show_bug.cgi?id=2477939.
-
-Storage server templates do NOT use this — they don't run cri-o or kubelet.
-
 ## kubeadm configs are templates
 
 `kubeadm-init.yaml`, `kubeadm-join-worker.yaml`, `kubeadm-join-control-plane.yaml`
