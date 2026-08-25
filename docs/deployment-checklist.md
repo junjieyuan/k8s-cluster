@@ -12,6 +12,16 @@ This applies to new components and upgrades alike.
   - Plain YAML components: `images.newTag` field
 - [ ] `helm search repo <chart> --versions` (or upstream release page)
   confirms this is the latest stable.
+- [ ] Rendered images match their pinned references —
+  `kubectl kustomize --enable-helm <dir>/ | grep image:`. A rendered image
+  without tag/digest means the pin didn't match (silent failure) — check the
+  `images[].name` entry (plain YAML) or values key (helmCharts) against the
+  deployment's image.
+
+## KYAML formatting
+
+- [ ] Every `*.yaml` in the change is KYAML-formatted; `yamlfmt -lint <dir>/`
+  passes (or `yamlfmt -dry` shows no diff).
 
 ## values.yaml
 
@@ -32,9 +42,10 @@ This applies to new components and upgrades alike.
 ## Idempotency
 
 - [ ] Re-running the deploy command produces a no-op: no pods restart,
-  no resources created or changed.
-  `kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`
-  shows only annotation patches on existing resources.
+  no resources created or changed. The check is an empty diff, not the
+  `apply` verb (apply reports `configured` even when nothing changed):
+  `kubectl kustomize --enable-helm <dir>/ | kubectl diff -f -` shows no
+  output.
 
 ## Post-deploy verification
 
@@ -62,3 +73,8 @@ This applies to new components and upgrades alike.
 - [ ] Clustered changes (e.g. operator restart after config patch) use
   `kubectl rollout restart` and wait for availability.
 - [ ] Gateway API CRD version matches what Cilium supports.
+
+## Committed
+
+- [ ] The change is committed (see Commit conventions in `AGENTS.md`); an
+  uncommitted change leaves the repo out of sync with the cluster.

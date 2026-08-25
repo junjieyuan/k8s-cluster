@@ -19,6 +19,45 @@ resource must be reflected in code here. No manual changes on the cluster
 without corresponding updates to manifests or configs. All deployments must
 be idempotent — re-running them should result in no-op.
 
+## Drift prevention
+
+The repo is the source of truth for every cluster-level resource. Runtime
+state must never be changed with one-off commands:
+
+- **Never use `kubectl scale`, `kubectl edit`, `kubectl patch`, or
+  `kubectl delete` to mutate manifest-managed resources** (deployments,
+  services, PVCs/PVs, namespaces, Cilium CRs, ...). These change the cluster
+  without a manifest, and the next `kubectl apply` silently reverts them —
+  the repo and cluster drift apart.
+- **Pods are exempt: they are controller-managed and never live in the
+  repo.** Deleting a pod is remediation, not drift — the
+  Deployment/ReplicaSet recreates it. Safe targets: stale `Unknown` pods
+  after a node reboot (they still count toward replicas and block the
+  replacement until removed), stuck `Terminating`, CrashLoopBackOff. Verify
+  node/workload state first, and only delete pods owned by a controller with
+  a manifest — mind pods with node-local/RWO volumes whose replacement may
+  not start elsewhere.
+- **Read-only inspection is always allowed** — `get`, `describe`, `logs`,
+  `events`, `top`, `port-forward`. `exec` is for inspection only: never
+  modify files under mounted volumes (that would be unreflected state).
+- **Rollout operations are exempt** — `kubectl rollout restart|status|undo`
+  do not change the declared spec (restart only stamps an annotation) and
+  are the approved way to force a reload after config/secret changes.
+- **Node maintenance is not drift** — `cordon`/`uncordon`/`drain` change
+  scheduling, not manifests.
+- **Replica counts live in the manifests.** To scale a component, edit
+  `replicas:` in its `values.yaml` (or manifest), commit, then re-apply.
+  Re-running the apply is the idempotency check.
+- **Decommissioning** — to remove a component, run
+  `kubectl kustomize --enable-helm <dir>/ | kubectl delete -f -` first
+  (while the manifests are still in the repo), then delete the manifests and
+  commit. Plain `kubectl apply` never deletes resources that disappear from
+  manifests. Never `kubectl delete` PVCs/PVs ad-hoc — that is data loss,
+  not drift.
+- **No ad-hoc test resources** — throwaway namespaces/pods/CRs outside the
+  repo violate the sync invariant; if temporary resources are unavoidable,
+  clean them up before finishing.
+
 ## Tool constraints
 
 - **Bash only** — `#!/usr/bin/env bash` + `set -euo pipefail` on every script.
@@ -77,6 +116,12 @@ KYAML's double-quoted strings preserve substitution.
   `sudo kubeadm upgrade plan` 查看可升级版本，确认后运行
   `sudo kubeadm upgrade apply <version>` 升级控制面静态 pod
   （apiserver/controller-manager/scheduler），否则 kubelet 与控制面版本会不一致。
+- **Container images** — pin `images.newTag` as `tag@digest` (tag for
+  humans, digest authoritative for pulls).
+- **Digest maintenance** — on a tag bump update BOTH halves of `newTag`.
+  The digest is the `Docker-Content-Digest` the registry returns for the
+  tag (`crane digest`, or the registry API header). A tag-only bump keeps
+  pulling the old artifact — digest wins.
 - **Gateway API CRDs** — install from upstream release URL; version must match
   what Cilium supports. Do not copy CRD YAML into the repo.
 
@@ -238,6 +283,11 @@ KYAML-formatted (see "YAML is KYAML") — re-run `yamlfmt` after editing.
 (`.env`, `*.ign`, credentials). Committed files use `.example` variants
 with placeholder values only.
 
+**`values-secret.yaml` for `helmCharts` components** — sensitive Helm values
+(passwords, tokens) go in a gitignored `values-secret.yaml` loaded via
+`additionalValuesFiles`. Commit `values-secret.yaml.example` with
+placeholder values as a template.
+
 **Absolute prohibition:** never commit any secret, key, password, token,
 certificate, or credential to this repository. This includes SSH private keys,
 API keys, kubeconfig files, password hashes (except in `.env.example`
@@ -255,6 +305,17 @@ placeholders), and TLS certificates.
   piped through `envsubst` by their scripts.
 - **Verify RBAC against upstream docs** — controllers like external-dns often
   need `get/list/watch` on `namespaces` beyond their primary resources.
+
+## Documentation
+
+- **Keep docs in sync with code.** When changing deployment commands, secret
+  management, directory structure, or conventions, update these files in the
+  same commit or a follow-up:
+  - `AGENTS.md` — if conventions change
+  - `README.md` — if deploy commands, component list, or architecture change
+  - `docs/` — the detailed references (upgrade guides, checklists, component
+    notes) when procedures or known issues change
+  - `.gitignore` — if new ignored file patterns are introduced
 
 ## Commit conventions
 

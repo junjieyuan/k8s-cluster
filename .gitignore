@@ -1,6 +1,7 @@
 # Secrets / credentials
 .env
 *.ign
+values-secret.yaml
 
 # Kustomize helmCharts cache
 charts/
