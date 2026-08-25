@@ -8,7 +8,7 @@ This repo is responsible for two things:
    (see `bootstrap/`).
 2. **Cluster-level infrastructure** — services that the cluster itself depends
    on to function: CNI (Cilium), CSI (NFS), GPU operator, cert-manager,
-   external-dns. These live under `infrastructure/`.
+   external-dns, metrics-server. These live under `infrastructure/`.
 
 **This repo does NOT manage application workloads.** User-facing services
 (llama-server, web apps, etc.) belong in the **`k8s-apps`** repo
@@ -137,9 +137,9 @@ See `docs/cilium-gateway.md` for detailed setup and known issues.
 
 ## Naming conventions
 
-- **Environment variables** — use `K8S_` prefix for all `.env` variables that
-  are shared across bootstrap types. Non-`K8S_` names only for type-specific
-  vars (e.g. GPU pass-through PCI addresses).
+- **Environment variables** — all `.env` variables use the `K8S_` prefix,
+  whether shared across bootstrap types or type-specific (e.g.
+  `K8S_GPU_DEVICES` for GPU pass-through PCI addresses).
 - **Helm release names** — match the directory name.
 
 ## Directory structure
@@ -236,8 +236,9 @@ All types follow the same pattern:
 1. Copy `.env.example` → `.env`, fill in required variables.
 2. `build-ignition.sh` compiles the `.bu.tmpl` via envsubst + butane → `.ign`.
 3. `vm-deploy.sh` injects the Ignition config into the VM.
-4. `vm-deploy.sh` removes fwcfg Ignition from domain XML after provisioning
-   (security — the Ignition config contains the password hash).
+4. `vm-deploy.sh` removes fwcfg Ignition from domain XML and enables
+   autostart after provisioning (security — the Ignition config contains
+   the password hash).
 
 `build-ignition.sh` uses `set -a; source .env; set +a` to load variables. `envsubst`
 substitutes only the variables the template needs — not everything in `.env`.
@@ -274,8 +275,6 @@ KYAML-formatted (see "YAML is KYAML") — re-run `yamlfmt` after editing.
   `--cpus`/`--memory`/`--disk-size`
 - `--no-blockpull` — skip backing file pull after `virt-install`
 - `--dry-run` — available on most scripts
-- Infrastructure components pin versions in `kustomization.yaml`
-  (`helmCharts[].version` or `images.newTag`)
 
 ## Secrets
 
@@ -298,7 +297,8 @@ placeholders), and TLS certificates.
 - **Check logs immediately** after deploying any component:
   `kubectl logs -n <ns> deployment/<name>`. Investigate CrashLoop/BackOff
   before moving on.
-- **Always use kustomize for infrastructure** — `kubectl apply -k` or
+- **Always use kustomize for infrastructure** — plain-YAML components:
+  `kubectl apply -k <dir>/`; helmCharts components:
   `kubectl kustomize --enable-helm <dir>/ | kubectl apply -f -`. Never
   `kubectl apply -f` directly on infrastructure YAML files.
   Bootstrap kubeadm configs contain `${VAR}` placeholders; those are
@@ -325,14 +325,10 @@ placeholders), and TLS certificates.
 
 ## Image provisioning order
 
-1. `bootstrap/vm-image-upload.sh` → libvirt storage pool
-2. `bootstrap/<type>/build.sh` → Ignition config
-3. `bootstrap/vm-deploy.sh --type <type>` → VM
-
-After provisioning, `vm-deploy.sh` removes the fwcfg Ignition from the domain
-XML and enables autostart. For GPU nodes, `deploy_prepare_domain_xml` attaches
-PCI devices, virtiofs, and configures CPU/memory backing in the domain XML
-before first boot.
+1. `bootstrap/vm-image-upload.sh` → FCOS image into the libvirt storage pool
+2. `bootstrap/build-ignition.sh --template bootstrap/<type>/<type>.bu.tmpl`
+   → Ignition config (also auto-built by `vm-deploy.sh` in step 3)
+3. `bootstrap/vm-deploy.sh --type <type>` → provision and boot the VM
 
 ## Reference docs
 
