@@ -5,9 +5,4 @@
   driver: {
     enabled: false,
   },
-  # Explicitly set the CDI device spec class name for nvidia-device-plugin.
-  # Without this, the plugin may not register devices under the expected class.
-  cdi: {
-    defaultDeviceSpecClassName: "nvidia.com/gpu",
-  },
 }
