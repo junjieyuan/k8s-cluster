@@ -97,3 +97,24 @@ kubectl apply -f -`, then
 
 Do not run `cilium install`/`cilium upgrade` directly — the CLI manages the
 release via Helm and conflicts with kubectl-managed (kustomize) resources.
+
+---
+
+## Known issues
+
+### Kernel 7.2 requires Cilium >= 1.20.2
+
+Cilium below 1.20.2 fatal-crashes at agent startup on a 7.2 kernel:
+
+```
+level=fatal msg="failed to probe helper" ... error="detect support for
+FnSetRetval for program type CGroupSock: ... call bpf_set_retval#187:
+R1 is not a scalar"
+```
+
+`bpf_set_retval()` was probed with a context pointer, which 7.2's verifier now
+rejects. Fixed by the CO-RE probe rewrite in 1.20.2 (cilium/cilium#48213).
+
+A running agent survives the kernel upgrade and only dies on its next restart,
+so the node silently loses its CNI on reboot and every non-hostNetwork pod on
+it stalls — this is how the GPU worker (uCore, newer FCOS stream) went down.
