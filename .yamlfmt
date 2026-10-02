@@ -6,4 +6,7 @@
   formatter: {
     type: "kyaml",
   },
+  # Vendored chart sources are third-party and gitignored; without this,
+  # `yamlfmt -lint infrastructure/` fails on their templates.
+  gitignore_excludes: true,
 }
