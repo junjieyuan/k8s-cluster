@@ -3,6 +3,21 @@
   gatewayAPI: {
     enabled: true,
   },
+  # The chart's default "helm" method re-generates the CA and the Hubble
+  # certificates on every apply: its lookup-based reuse cannot work under
+  # `helm template`. See docs/cilium-gateway.md.
+  hubble: {
+    tls: {
+      auto: {
+        method: "certmanager",
+        certManagerIssuerRef: {
+          group: "cert-manager.io",
+          kind: "ClusterIssuer",
+          name: "internal-ca",
+        },
+      },
+    },
+  },
   ipam: {
     operator: {
       clusterPoolIPv4PodCIDRList: [

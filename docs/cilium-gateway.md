@@ -38,6 +38,30 @@ API on an existing cluster, the manual steps below are required.
   era is gone. The Experimental channel is only needed for existing `v1alpha2`
   TLSRoute objects, which this cluster does not use.
 
+### Hubble TLS certificates
+
+Hubble's server certificate is issued by cert-manager:
+`infrastructure/cilium/values.yaml` sets `hubble.tls.auto.method` to
+`certmanager` with a `certManagerIssuerRef` pointing at the `internal-ca`
+ClusterIssuer from `infrastructure/cert-manager/internal-ca.yaml`.
+
+The chart's default `helm` method generates a new CA and server certificate on
+every render: its `lookup`-based reuse cannot see the cluster from
+`helm template`, so each kustomize apply rotated `cilium-ca` and
+`hubble-server-certs` and no apply was ever a no-op. With `certmanager` the
+chart renders no Secret at all, and the certificates change only when
+cert-manager renews them.
+
+- The chart documents that `tls.ca` "is neither required nor used when
+  cert-manager is used to generate the certificates", so this method leaves no
+  `cilium-ca` Secret behind.
+- Agents hot-reload the certificates (Cilium polls the mounted files every
+  5s), so issuance and renewal need no restart.
+- On a fresh cluster Cilium is applied first — it provides the CNI that
+  cert-manager's pods need — so `Certificate hubble-server-certs` stays unready
+  until `infrastructure/cert-manager/` is applied. The `hubble-tls` volume is
+  `optional: true`, so the agents start regardless.
+
 ### LB-IPAM
 
 Gateway API requires a LoadBalancer IP for each Gateway. In bare-metal/libvirt
