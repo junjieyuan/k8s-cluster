@@ -32,14 +32,6 @@ Requires `.env` with Cloudflare API token (copy from `.env.example`).
 ClusterIssuer; it issues in-cluster certificates such as the Hubble server
 certificate.
 
-Proxying is the global default: `extraArgs.cloudflare-proxied: true` in
-`infrastructure/external-dns/values.yaml` means every DNSEndpoint record is
-proxied (orange cloud). Per-record overrides (e.g. DNS-only) are declared on
-the app side in `k8s-apps` DNSEndpoints with `providerSpecific` using the full
-annotation key `external-dns.alpha.kubernetes.io/cloudflare-proxied` and the
-string value `"true"`/`"false"` (not a YAML boolean). TXT/MX/NS/SPF/SRV/LOC
-records are never proxied.
-
 ### external-dns
 
 `deploy.sh` bootstraps the DNSEndpoint CRD from the cached chart, then applies:
@@ -49,6 +41,14 @@ bash infrastructure/external-dns/deploy.sh
 ```
 
 Requires `.env` with Cloudflare API token (copy from `.env.example`).
+
+Proxying is the global default: `extraArgs.cloudflare-proxied: true` in
+`infrastructure/external-dns/values.yaml` means every DNSEndpoint record is
+proxied (orange cloud). Per-record overrides (e.g. DNS-only) are declared on
+the app side in `k8s-apps` DNSEndpoints with `providerSpecific` using the full
+annotation key `external-dns.alpha.kubernetes.io/cloudflare-proxied` and the
+string value `"true"`/`"false"` (not a YAML boolean). TXT/MX/NS/SPF/SRV/LOC
+records are never proxied.
 
 ### gpu-operator
 
