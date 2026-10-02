@@ -1,0 +1,53 @@
+---
+# Bootstrap for an in-cluster CA. cert-manager has no built-in CA, so the
+# documented pattern is a self-signed issuer that signs one isCA certificate,
+# which a CA issuer then uses to sign leaf certificates.
+{
+  apiVersion: "cert-manager.io/v1",
+  kind: "Issuer",
+  metadata: {
+    name: "selfsigned-bootstrap",
+  },
+  spec: {
+    selfSigned: {},
+  },
+}
+---
+{
+  apiVersion: "cert-manager.io/v1",
+  kind: "Certificate",
+  metadata: {
+    name: "internal-ca",
+  },
+  spec: {
+    isCA: true,
+    commonName: "internal-ca",
+    secretName: "internal-ca-key-pair",
+    duration: "87600h",
+    renewBefore: "8760h",
+    # Never rotate the CA key: every leaf issued from it would be invalidated.
+    privateKey: {
+      algorithm: "ECDSA",
+      size: 384,
+      rotationPolicy: "Never",
+    },
+    issuerRef: {
+      name: "selfsigned-bootstrap",
+      kind: "Issuer",
+      group: "cert-manager.io",
+    },
+  },
+}
+---
+{
+  apiVersion: "cert-manager.io/v1",
+  kind: "ClusterIssuer",
+  metadata: {
+    name: "internal-ca",
+  },
+  spec: {
+    ca: {
+      secretName: "internal-ca-key-pair",
+    },
+  },
+}

@@ -28,6 +28,10 @@ kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f 
 
 Requires `.env` with Cloudflare API token (copy from `.env.example`).
 
+`internal-ca.yaml` adds a self-signed root CA and the `internal-ca`
+ClusterIssuer; it issues in-cluster certificates such as the Hubble server
+certificate.
+
 Proxying is the global default: `extraArgs.cloudflare-proxied: true` in
 `infrastructure/external-dns/values.yaml` means every DNSEndpoint record is
 proxied (orange cloud). Per-record overrides (e.g. DNS-only) are declared on

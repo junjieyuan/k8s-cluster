@@ -61,7 +61,8 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
     │   ├── kustomization.yaml              # cert-manager chart (helmCharts)
     │   ├── values.yaml                     # Helm values (CRD management, DNS config)
     │   ├── namespace.yaml                  # cert-manager namespace
-    │   └── clusterissuer.yaml              # Let's Encrypt production ClusterIssuer
+    │   ├── clusterissuer.yaml              # Let's Encrypt production ClusterIssuer
+    │   └── internal-ca.yaml                # Self-signed root CA + internal-ca ClusterIssuer
     ├── external-dns/
     │   ├── kustomization.yaml              # external-dns chart (helmCharts)
     │   ├── values.yaml                     # Helm values (Cloudflare, proxied default)

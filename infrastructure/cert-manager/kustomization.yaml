@@ -16,6 +16,7 @@
   resources: [
     "namespace.yaml",
     "clusterissuer.yaml",
+    "internal-ca.yaml",
   ],
   secretGenerator: [{
     name: "cloudflare-api-token",
