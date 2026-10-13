@@ -70,6 +70,8 @@ This applies to new components and upgrades alike.
 - [ ] Chart rendered with `kubectl kustomize --enable-helm
   infrastructure/cilium/`; version pinned in `kustomization.yaml`.
 - [ ] `kubectl diff` against live shows no unexpected spec changes.
+- [ ] `k8sServiceHost`/`k8sServicePort` render into the agent, envoy, and
+  operator `env` (*API server access* in `docs/cilium-gateway.md`).
 - [ ] Clustered changes (e.g. operator restart after config patch) use
   `kubectl rollout restart` and wait for availability.
 - [ ] Gateway API CRD version matches what Cilium supports.

@@ -16,6 +16,10 @@ These are the rules and known issues collected from operational experience.
   access. Requires RBAC patch on `clusterrole cilium` for `leases` resource.
 - **kube-proxy replacement** — mandatory for Gateway API. Cilium handles
   service routing via eBPF.
+- **API server access** — `k8sServiceHost`/`k8sServicePort` in
+  `infrastructure/cilium/values.yaml` must name the kubeadm
+  `controlPlaneEndpoint`, not the `kubernetes` ClusterIP
+  ([why](#gateway-api-tls-stays-broken-when-the-api-server-is-unreachable-at-boot)).
 
 ---
 
@@ -142,3 +146,35 @@ rejects. Fixed by the CO-RE probe rewrite in 1.20.2 (cilium/cilium#48213).
 A running agent survives the kernel upgrade and only dies on its next restart,
 so the node silently loses its CNI on reboot and every non-hostNetwork pod on
 it stalls — this is how the GPU worker (uCore, newer FCOS stream) went down.
+
+### Gateway API TLS stays broken when the API server is unreachable at boot
+
+If cilium-operator starts while the API server is unreachable, Gateway API stays
+disabled until the operator restarts: nothing is synced into `cilium-secrets`,
+Envoy holds zero certificates, and every HTTPS hostname behind the Gateway
+fails the TLS handshake (Cloudflare 502; cloudflared `read: connection reset by
+peer`) while Kubernetes still reports `Programmed: True`.
+
+On 2026-10-11 every VM cold-booted: the operator checked CRDs 17s in, dialed the
+`kubernetes` ClusterIP for 30s — Cilium's datapath needs a local agent, which
+only came up 37s after that timeout — and Gateway API stayed off.
+
+cilium-operator decides once, at startup, whether Gateway API is usable and
+never rechecks it. A client-go dial timeout is not in its retry list, so the
+race disables Gateway API without returning an error — only a `Required
+GatewayAPI resources are not found` line is logged (cilium/cilium#43130;
+#43452/#44662, both in 1.20.2).
+
+Diagnose:
+
+```bash
+kubectl -n cilium-secrets get secrets -l secretsync.cilium.io/owning-secret-name
+kubectl -n kube-system exec ds/cilium -c cilium-agent -- \
+  cilium-dbg envoy admin certs                 # {"certificates": []} = broken
+kubectl -n kube-system logs -l io.cilium/app=operator | grep "Secret synchronization"
+```
+
+Fix: `kubectl -n kube-system rollout restart deployment/cilium-operator` re-runs
+the check. `k8sServiceHost` removes the cold-boot trigger, but a restart while
+the API server is down can still hit it; the value went missing in the move off
+`cilium install`, and the chart's `auto` needs a live cluster lookup.

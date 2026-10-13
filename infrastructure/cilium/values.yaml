@@ -25,6 +25,10 @@
       ],
     },
   },
+  # The `kubernetes` ClusterIP is unreachable before an agent runs (kube-proxy
+  # replacement); see "API server access" in docs/cilium-gateway.md.
+  k8sServiceHost: "control-plane.k8s.junjie.pro",
+  k8sServicePort: "6443",
   kubeProxyReplacement: true,
   l2announcements: {
     enabled: true,
