@@ -29,7 +29,7 @@
 
 ```bash
 bash bootstrap/vm-deploy.sh --type k8s-node \
-  --name <new-node> --cpus 2 --memory 4096 --disk-size 64
+  --name <new-node> --cpus 2 --memory 4096 --disk-size 128
 ```
 
 等待 VM 启动并完成 rpm-ostree 安装（约 2-3 分钟，会自动重启一次）。

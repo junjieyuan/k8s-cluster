@@ -103,7 +103,7 @@ cp bootstrap/k8s-gpu-node/.env.example bootstrap/k8s-gpu-node/.env
 
 ```bash
 bash bootstrap/vm-deploy.sh --type k8s-gpu-node \
-  --name <new-gpu-node> --cpus 16 --memory 32768 --disk-size 64
+  --name <new-gpu-node> --cpus 16 --memory 32768 --disk-size 256
 ```
 
 部署流程：
