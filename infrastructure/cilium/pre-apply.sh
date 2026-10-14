@@ -45,7 +45,7 @@ kubectl cluster-info >/dev/null 2>&1 || {
 # the Standard channel). The Experimental channel additionally serves the
 # deprecated v1alpha2/v1alpha3 — only needed for existing v1alpha2 TLSRoute
 # objects, which this cluster does not use.
-GATEWAY_API_URL="https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/standard-install.yaml"
+GATEWAY_API_URL="https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/standard-install.yaml"
 echo "Installing Gateway API CRDs..." >&2
 if $DRY_RUN; then
     echo "DRY-RUN: kubectl apply -f $GATEWAY_API_URL"
