@@ -3,10 +3,13 @@
   apiVersion: "kustomize.config.k8s.io/v1beta1",
   kind: "Kustomization",
   namespace: "cert-manager",
+  # Bumping the chart requires deleting the completed startupapicheck Job
+  # first: kustomize has no Helm hook semantics, and the Job template labels
+  # carry the chart version, which is immutable.
   helmCharts: [{
     name: "cert-manager",
     repo: "oci://quay.io/jetstack/charts",
-    version: "v1.21.2",
+    version: "v1.21.3",
     releaseName: "cert-manager",
     valuesFile: "values.yaml",
   }],
