@@ -36,11 +36,8 @@ API on an existing cluster, the manual steps below are required.
 
 - `kubeProxyReplacement=true` is **mandatory** for Gateway API. Without it the
   operator logs `Invoke failed: failed to create gateway controller` and crashes.
-- `pre-apply.sh` installs the Gateway API v1.6.1 CRDs (Standard channel).
-  Cilium 1.20 requires Gateway API v1.6.1 — TLSRoute graduated to `v1` and is
-  served by the Standard CRDs, so the `v1alpha2` served patch from the 1.19.x
-  era is gone. The Experimental channel is only needed for existing `v1alpha2`
-  TLSRoute objects, which this cluster does not use.
+- `pre-apply.sh` bootstraps the Gateway API CRDs (Standard channel) that
+  Cilium needs before the main apply.
 
 ### Hubble TLS certificates
 
