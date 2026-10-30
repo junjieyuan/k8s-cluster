@@ -101,6 +101,9 @@ else
     exit 1
 fi
 
+echo "Setting ownership to qemu:qemu..." >&2
+chown qemu:qemu "$VOL_PATH"
+
 trap - ERR INT TERM
 echo "" >&2
 echo "Upload complete: $VOL_PATH" >&2
