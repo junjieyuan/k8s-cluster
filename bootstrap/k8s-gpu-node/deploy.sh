@@ -10,6 +10,12 @@ set -euo pipefail
 #   K8S_VIRTIOFS_SOURCE    Host directory for virtiofs passthrough (optional)
 #   K8S_VIRTIOFS_TARGET    Guest mount tag (default: hf_hub)
 
+# Secure Boot is off for this type. libvirt resolves `firmware="efi"` to the
+# secboot OVMF build with Microsoft's db enrolled, which would reject the nvidia
+# module: uCore signs it with the akmods-ublue key, and enrolling that key as a MOK
+# is an interactive step (MokManager) that a headless VM (--graphics=none) cannot
+# reach.
+
 # Convert PCI address "01:00.0" or "0000:01:00.0" to hostdev XML
 _pci_to_hostdev_xml() {
     local pci="$1"
@@ -38,6 +44,18 @@ _pci_to_hostdev_xml() {
 
 deploy_prepare_domain_xml() {
     local xml_file="$1"
+
+    # 0. Secure Boot off for GPU workers (see header note)
+    local fw_snippet
+    fw_snippet="$(mktemp)"
+    cat > "$fw_snippet" <<'XMLEOF'
+    <firmware>
+      <feature enabled='no' name='secure-boot'/>
+      <feature enabled='no' name='enrolled-keys'/>
+    </firmware>
+XMLEOF
+    sed -i "/<type arch/r $fw_snippet" "$xml_file"
+    rm -f "$fw_snippet"
 
     # 1. memoryBacking: memfd + shared (required for VFIO passthrough)
     local mem_snippet
@@ -85,6 +103,7 @@ XMLEOF
     mv "${xml_file}.new" "$xml_file"
     rm -f "$dev_snippet"
 
+    echo "  [OK] secure boot disabled (nvidia module is signed with akmods-ublue key)" >&2
     echo "  [OK] memory backing configured (memfd+shared)" >&2
     [[ -n "${K8S_GPU_DEVICES:-}" ]] && echo "  [OK] GPU passthrough: ${K8S_GPU_DEVICES}" >&2
     [[ -n "${K8S_VIRTIOFS_SOURCE:-}" ]] && echo "  [OK] virtiofs: ${K8S_VIRTIOFS_SOURCE} -> ${K8S_VIRTIOFS_TARGET:-hf_hub}" >&2

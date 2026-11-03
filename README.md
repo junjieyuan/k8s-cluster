@@ -83,6 +83,8 @@ Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignit
 ## Prerequisites
 
 - Linux host with KVM/libvirt (`virt-install`, `virsh`)
+- `edk2-ovmf` on the hypervisor host — VMs boot UEFI (`--boot=uefi` in
+  `vm-deploy.sh`), so libvirt needs the OVMF firmware files available
 - [Butane](https://coreos.github.io/butane/) (`butane`)
 - `envsubst` (usually in `gettext` package)
 - FCOS QCOW2 image uploaded to libvirt storage pool (see step 1)

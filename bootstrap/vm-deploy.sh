@@ -158,6 +158,7 @@ virt-install \\
     --vcpus=$VM_CPUS \\
     --memory=$VM_MEMORY \\
     --os-variant=$VM_OS \\
+    --boot=uefi \\
     --import \\
     --disk size=$VM_DISK_SIZE,backing_store=$dry_image \\
     --graphics=none \\
@@ -225,6 +226,7 @@ virt-install \
     --vcpus="$VM_CPUS" \
     --memory="$VM_MEMORY" \
     --os-variant="$VM_OS" \
+    --boot=uefi \
     --import \
     --disk "size=$VM_DISK_SIZE,backing_store=$VM_IMAGE" \
     --graphics=none \

@@ -109,7 +109,7 @@ bash bootstrap/vm-deploy.sh --type k8s-gpu-node \
 部署流程：
 
 1. 部署脚本生成 domain XML 并创建 overlay 磁盘
-2. 在 XML 中注入 GPU 直通、virtiofs、CPU host-passthrough、memfd 共享内存
+2. 在 XML 中注入 GPU 直通、virtiofs、CPU host-passthrough、memfd 共享内存，并关闭 Secure Boot（nvidia 模块由 akmods-ublue 密钥签名，MOK 注册是交互步骤，headless VM 无法完成）
 3. VM 首次启动，GPU 已在 PCI 总线上，Ignition 注入
 4. uCore 自动 rebase（unsigned → signed）+ 安装 k8s 包，3 次重启
 
