@@ -102,7 +102,9 @@ yamlfmt -lint <dir>/  # enforce
 
 Exception: kubeadm configs under `bootstrap/kubeadm/` are KYAML-formatted
 but keep their `${VARIABLE}` placeholders — they are envsubst sources, and
-KYAML's double-quoted strings preserve substitution.
+KYAML's double-quoted strings preserve substitution. Multi-document configs
+also need a comment line as the first line of every document after the first
+— kubeadm would otherwise parse it as JSON (see `kubeadm-init.yaml`).
 
 ## Component versions
 

@@ -16,6 +16,8 @@
   },
 }
 ---
+# Must stay: kubeadm parses any document starting with "{" as JSON, and
+# KYAML's unquoted keys are not valid JSON.
 {
   apiVersion: "kubeadm.k8s.io/v1beta4",
   kind: "ClusterConfiguration",
