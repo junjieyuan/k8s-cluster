@@ -135,7 +135,9 @@ See `docs/cilium-gateway.md` for detailed setup and known issues.
   plumbing; the `Gateway`/`HTTPRoute` objects themselves live in `k8s-apps`.
 - **LB-IPAM** — always create a `CiliumLoadBalancerIPPool` for bare-metal.
 - **L2 announcements** — enable in bare-metal environments (needs `leases` RBAC).
-- **kube-proxy replacement** — mandatory for Gateway API.
+- **kube-proxy replacement** — mandatory for Gateway API. kube-proxy is never
+  installed: `kubeadm-init.yaml` skips `addon/kube-proxy`, and kubeadm records
+  `proxy.disabled: true` so upgrades skip the addon as well.
 
 ## Naming conventions
 

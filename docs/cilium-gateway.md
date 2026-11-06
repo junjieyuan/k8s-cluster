@@ -17,7 +17,8 @@ These are the rules and known issues collected from operational experience.
 - **L2 announcements** — enable in bare-metal environments for external LB
   access. Requires RBAC patch on `clusterrole cilium` for `leases` resource.
 - **kube-proxy replacement** — mandatory for Gateway API. Cilium handles
-  service routing via eBPF.
+  service routing via eBPF and kube-proxy is never installed
+  ([how](#kube-proxy-replacement)).
 - **API server access** — `k8sServiceHost`/`k8sServicePort` in
   `infrastructure/cilium/values.yaml` must name the kubeadm
   `controlPlaneEndpoint`, not the `kubernetes` ClusterIP
@@ -124,6 +125,42 @@ kubectl apply -f -`, then
 
 Do not run `cilium install`/`cilium upgrade` directly — the CLI manages the
 release via Helm and conflicts with kubectl-managed (kustomize) resources.
+
+### kube-proxy replacement
+
+kube-proxy is never deployed. `bootstrap/kubeadm/kubeadm-init.yaml` skips
+`addon/kube-proxy`; kubeadm turns that into `proxy.disabled: true` in the
+`kubeadm-config` ConfigMap, which is the only thing `kubeadm upgrade
+apply|node` consults before installing the addon. Deleting the `kube-proxy`
+ConfigMap does not stop an upgrade any more — kubeadm 1.32+ ignores its
+absence ([kubeadm#3137](https://github.com/kubernetes/kubeadm/issues/3137)).
+
+Verify before an upgrade:
+
+```bash
+sudo kubeadm upgrade apply <version> --dry-run --yes | tail -1
+# [upgrade/addon] Skipping the addon/kube-proxy phase. The addon is disabled.
+```
+
+Clusters created before this rule have `proxy: {}` in `kubeadm-config` and
+regain kube-proxy on the next upgrade. Fix them by re-uploading the full
+`ClusterConfiguration` with that one field set (`proxy: {}` → `proxy:` +
+`  disabled: true`, everything else untouched):
+
+```bash
+sudo kubeadm init phase upload-config kubeadm --config <file>
+```
+
+Clean up anything already on the cluster — the DaemonSet, the ConfigMap, and
+the `KUBE-*` iptables rules left on each node (`CILIUM_*` chains are
+untouched):
+
+```bash
+kubectl delete daemonset kube-proxy -n kube-system --ignore-not-found
+kubectl delete configmap kube-proxy -n kube-system --ignore-not-found
+sudo iptables-save | grep -v KUBE | sudo iptables-restore
+sudo ip6tables-save | grep -v KUBE | sudo ip6tables-restore
+```
 
 ---
 

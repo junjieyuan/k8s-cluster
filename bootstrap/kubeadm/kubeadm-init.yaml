@@ -2,6 +2,11 @@
 {
   apiVersion: "kubeadm.k8s.io/v1beta4",
   kind: "InitConfiguration",
+  # Cilium's eBPF datapath replaces the kube-proxy addon; installing it as well
+  # would put a second NAT implementation on every node, unaware of Cilium's.
+  skipPhases: [
+    "addon/kube-proxy",
+  ],
   nodeRegistration: {
     criSocket: "unix:///var/run/crio/crio.sock",
     kubeletExtraArgs: [{

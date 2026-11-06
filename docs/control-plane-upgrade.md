@@ -246,12 +246,13 @@ kubectl get pods -n kube-system | grep -E "apiserver|controller-manager|schedule
 kubectl get pods -n kube-system -l "app.kubernetes.io/name=cilium" -o wide
 ```
 
-### 8c. kube-proxy 清理（可选）
+### 8c. kube-proxy 检查
 
-仅在 Cilium `kubeProxyReplacement=true` 时执行：
+Cilium 接管 service 路由后 kube-proxy 不再安装（机制见
+`docs/cilium-gateway.md` 的 kube-proxy replacement），确认没有意外带出：
 
 ```bash
-kubectl delete daemonset kube-proxy -n kube-system --ignore-not-found
+kubectl -n kube-system get ds,cm | grep kube-proxy || echo "absent"
 ```
 
 ---
