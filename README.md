@@ -2,6 +2,8 @@
 
 Provision a Kubernetes cluster on Fedora CoreOS VMs using libvirt + Butane/Ignition + kubeadm + Cilium.
 
+This repo covers cluster provisioning and cluster-level infrastructure only; application workloads that run on the cluster live in [`k8s-apps`](https://github.com/junjieyuan/k8s-apps).
+
 ## Overview
 
 - **Runtime**: CRI-O

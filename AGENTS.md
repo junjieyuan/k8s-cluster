@@ -11,8 +11,9 @@ This repo is responsible for two things:
    external-dns, metrics-server. These live under `infrastructure/`.
 
 **This repo does NOT manage application workloads.** User-facing services
-(llama-server, web apps, etc.) belong in the **`k8s-apps`** repo
-(`~/Projects/k8s-apps`). Do not place application manifests here.
+(llama-server, web apps, etc.) belong in the
+[`k8s-apps`](https://github.com/junjieyuan/k8s-apps) repo. Do not place
+application manifests here.
 
 **The repo must be in full sync with the cluster** — every cluster-level
 resource must be reflected in code here. No manual changes on the cluster
@@ -130,7 +131,8 @@ KYAML's double-quoted strings preserve substitution.
 See `docs/cilium-gateway.md` for detailed setup and known issues.
 
 - **Gateway API over Ingress** — use `Gateway` + `HTTPRoute`, never Ingress or
-  Cilium Ingress CRDs.
+  Cilium Ingress CRDs. This repo provides the CRDs, the LB pool, and L2
+  plumbing; the `Gateway`/`HTTPRoute` objects themselves live in `k8s-apps`.
 - **LB-IPAM** — always create a `CiliumLoadBalancerIPPool` for bare-metal.
 - **L2 announcements** — enable in bare-metal environments (needs `leases` RBAC).
 - **kube-proxy replacement** — mandatory for Gateway API.
@@ -141,6 +143,24 @@ See `docs/cilium-gateway.md` for detailed setup and known issues.
   whether shared across bootstrap types or type-specific (e.g.
   `K8S_GPU_DEVICES` for GPU pass-through PCI addresses).
 - **Helm release names** — match the directory name.
+
+## Cross-repo references
+
+This repo and `k8s-apps` share one cluster. Reference the other repo by
+**name**, never by where its checkout lives — the two are not guaranteed to
+sit in the same parent directory.
+
+- **Markdown docs** — first mention in a file is a full link,
+  [`k8s-apps`](https://github.com/junjieyuan/k8s-apps); later mentions use the
+  bare name in backticks (`k8s-apps`).
+- **YAML comments, scripts, `.env` templates** — bare repo name only, no
+  link; those files are never rendered.
+- **Name the path inside the other repo**, never a local directory: write
+  `k8s-apps/gateway/`, not `~/Projects/k8s-apps/gateway/`.
+- **Never** write machine-local paths (`~/Projects/...`, `/var/home/...`) in
+  committed files — they break for everyone else, and go stale on rename.
+- Dated notes under `docs/superpowers/` are historical records: leave their
+  wording, including any inline paths, as written.
 
 ## Directory structure
 

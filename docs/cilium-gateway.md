@@ -9,7 +9,9 @@ These are the rules and known issues collected from operational experience.
 
 - **Gateway API over Ingress** — expose services via `Gateway` + `HTTPRoute`
   (`gateway.networking.k8s.io/v1`). Do not use `networking.k8s.io/v1` Ingress
-  or Cilium Ingress CRDs.
+  or Cilium Ingress CRDs. The `Gateway`/`HTTPRoute` objects themselves live in
+  [`k8s-apps`](https://github.com/junjieyuan/k8s-apps); this repo ships only
+  the CRDs, the LB-IPAM pool, and the L2 announcement policy.
 - **LB-IPAM** — always create a `CiliumLoadBalancerIPPool` for bare-metal
   environments. No manual external IP assignment.
 - **L2 announcements** — enable in bare-metal environments for external LB

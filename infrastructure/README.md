@@ -29,8 +29,9 @@ kubectl kustomize --enable-helm infrastructure/cert-manager/ | kubectl apply -f 
 Requires `.env` with Cloudflare API token (copy from `.env.example`).
 
 `internal-ca.yaml` adds a self-signed root CA and the `internal-ca`
-ClusterIssuer; it issues in-cluster certificates such as the Hubble server
-certificate.
+ClusterIssuer, used for in-cluster certificates such as the Hubble server
+certificate. The `letsencrypt-prod` ClusterIssuer is consumed by `Certificate`
+resources in the [`k8s-apps`](https://github.com/junjieyuan/k8s-apps) repo.
 
 ### external-dns
 
