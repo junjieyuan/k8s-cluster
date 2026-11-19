@@ -42,7 +42,7 @@ kubectl cluster-info >/dev/null 2>&1 || {
 
 # Gateway API CRDs BEFORE Cilium — the operator requires them at startup.
 # Cilium 1.20 targets the Gateway API v1.6 line (TLSRoute graduated to v1,
-# served by the Standard channel); v1.6.3 matches the Cilium 1.20.4 module pin.
+# served by the Standard channel); v1.6.3 matches the Cilium 1.20.5 module pin.
 # The Experimental channel serves deprecated v1alpha2/v1alpha3 APIs — only
 # needed for existing v1alpha2 TLSRoute objects; this cluster does not use them.
 GATEWAY_API_URL="https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/standard-install.yaml"
