@@ -163,8 +163,6 @@ sit in the same parent directory.
   `k8s-apps/gateway/`, not `~/Projects/k8s-apps/gateway/`.
 - **Never** write machine-local paths (`~/Projects/...`, `/var/home/...`) in
   committed files — they break for everyone else, and go stale on rename.
-- Dated notes under `docs/superpowers/` are historical records: leave their
-  wording, including any inline paths, as written.
 
 ## Directory structure
 
